@@ -99,6 +99,119 @@ function benchNear() {
     '</tbody></table><div class="tiny muted">A wavelength over two pi - the boundary of the reactive near field for a wire-sized antenna. A rule of thumb, not a wall: coupling fades across it rather than stopping at it.</div>';
 }
 
+/* The terminator: a bank of identical resistors, s in series and p strings
+   in parallel, so each carries an equal share of the heat. The same
+   arithmetic as bench.termination_bank, and the tests hold that one. */
+const E12 = [10, 12, 15, 18, 22, 27, 33, 39, 47, 56, 68, 82];
+const E24 = [10, 11, 12, 13, 15, 16, 18, 20, 22, 24, 27, 30, 33, 36, 39, 43, 47, 51, 56, 62, 68, 75, 82, 91];
+const RESISTOR_VOLTS = 350;
+
+function seriesValues(series) {
+  const out = [];
+  for (let k = 0; k < 6; k++) (series === 'E12' ? E12 : E24).forEach(v => out.push(+(v * Math.pow(10, k) / 10).toFixed(6)));
+  return out;
+}
+
+/* "1k", "4.7k", "1M", "106" -> ohms. */
+function ohmsOf(text) {
+  const m = String(text).trim().toLowerCase().match(/^([0-9]*\.?[0-9]+)\s*([km]?)/);
+  if (!m) return NaN;
+  return parseFloat(m[1]) * (m[2] === 'k' ? 1e3 : m[2] === 'm' ? 1e6 : 1);
+}
+
+function bankCandidates(target, watts, share, dissipate, each, pool, tol, fewest, above, most) {
+  const out = [];
+  for (let s = 1; s <= most; s++) {
+    for (let p = 1; p <= Math.floor(most / s); p++) {
+      const parts = s * p;
+      if (parts < fewest || parts <= above) continue;
+      const want = target * p / s;
+      let value = pool[0];
+      pool.forEach(v => { if (Math.abs(Math.log(v / want)) < Math.abs(Math.log(value / want))) value = v; });
+      const total = value * s / p, error = total / target - 1;
+      if (Math.abs(error) > tol + 1e-12) continue;
+      const volts = Math.sqrt(watts * share * total) * Math.SQRT2 / s;
+      out.push({series: s, parallel: p, parts: parts, value: value, total: total, error: error,
+                watts_each: dissipate / parts, volts_peak_each: volts, volts_ok: volts <= RESISTOR_VOLTS});
+    }
+  }
+  return out;
+}
+
+function terminationBank(target, watts, share, duty, margin, each, values, tol, maxParts, best) {
+  tol = tol || 0.10; maxParts = maxParts || 400; best = best || 4;
+  if (!(target > 0) || !(watts >= 0) || !(each > 0)) return null;
+  const dissipate = watts * share * duty, rated = dissipate * margin;
+  const fewest = Math.max(1, Math.ceil(rated / each - 1e-9));
+  const pool = [...new Set((values && values.length ? values : seriesValues('E24')).filter(v => v > 0))].sort((a, b) => a - b);
+  if (!pool.length) return null;
+  let most = Math.min(maxParts, Math.max(fewest + 3, Math.ceil(fewest * 1.25))), looked = 0, cands = [];
+  while (!cands.length && looked < maxParts) {
+    cands = bankCandidates(target, watts, share, dissipate, each, pool, tol, fewest, looked, most);
+    looked = most; most = Math.min(maxParts, most * 2);
+  }
+  const plan = {dissipate: dissipate, rated: rated, fewest: fewest, banks: []};
+  if (!cands.length) return plan;
+  const rank = b => [b.volts_ok ? 0 : 1, Math.round(Math.abs(b.error) / 0.02),
+                     Math.max(b.series, b.parallel) / Math.min(b.series, b.parallel) > 8 ? 1 : 0, b.parts];
+  const cmp = (a, b) => { const x = rank(a), y = rank(b); for (let i = 0; i < x.length; i++) if (x[i] !== y[i]) return x[i] - y[i]; return 0; };
+  const least = Math.min(...cands.map(b => b.parts));
+  const picked = [cands.filter(b => b.parts === least).sort(cmp)[0]];
+  cands.slice().sort(cmp).forEach(b => {
+    if (picked.length < best && picked.every(q => q.series !== b.series || q.parallel !== b.parallel)) picked.push(b);
+  });
+  picked.sort((a, b) => a.parts - b.parts || Math.abs(a.error) - Math.abs(b.error));
+  plan.banks = picked;
+  return plan;
+}
+
+function ohmsText(v) {
+  return v >= 1e6 ? +(v / 1e6).toFixed(2) + ' M&Omega;' : v >= 1e3 ? +(v / 1e3).toFixed(2) + ' k&Omega;' : +v.toFixed(1) + ' &Omega;';
+}
+
+function benchTerminator() {
+  const target = benchNum('bt-ohms', 600), watts = benchNum('bt-watts', 100);
+  const share = Math.max(0, Math.min(100, benchNum('bt-share', 50))) / 100;
+  const duty = parseFloat(document.getElementById('bt-duty').value) || 1;
+  const each = parseFloat(document.getElementById('bt-each').value) || 2;
+  const margin = Math.max(1, benchNum('bt-margin', 1.5));
+  const which = document.getElementById('bt-series').value;
+  const have = String(document.getElementById('bt-have').value).split(/[,;\s]+/).map(ohmsOf).filter(v => v > 0);
+  const out = document.getElementById('bt-out');
+  if (which === 'have' && !have.length) { out.innerHTML = '<span class="muted">Type the values you have, separated by commas - 106, 470, 1k.</span>'; return; }
+  const plan = terminationBank(target, watts, share, duty, margin, each, which === 'have' ? have : seriesValues(which));
+  if (!plan) { out.innerHTML = '<span class="muted">The terminator, the power and the rating all have to be above zero.</span>'; return; }
+  const head = 'The terminator takes about <b>' + plan.dissipate.toFixed(1) + ' W</b> (' + Math.round(share * 100) + '% of ' + watts +
+    ' W' + (duty < 1 ? ', averaged for the mode' : ', full carrier') + '). Rated ' + margin + ' times that, the bank wants <b>' +
+    plan.rated.toFixed(0) + ' W</b> of resistors: at least <b>' + plan.fewest + '</b> of ' + each + ' W each.';
+  if (!plan.banks.length) {
+    out.innerHTML = head + ' <span style="color:var(--amber)">No bank of identical resistors from these values lands within 10% of ' +
+      target + ' &Omega; - try another value, or a bigger rating each.</span>';
+    return;
+  }
+  const rows = plan.banks.map(b =>
+    '<tr><td class="mono">' + b.parts + ' &times; ' + ohmsText(b.value) + '</td><td>' +
+    (b.series === 1 ? 'all ' + b.parallel + ' in parallel' : b.parallel === 1 ? 'all ' + b.series + ' in series'
+      : b.parallel + ' strings of ' + b.series + ' in series, the strings in parallel') +
+    '</td><td class="mono">' + ohmsText(b.total) + (Math.abs(b.error) >= 0.0005 ? ' (' + (b.error > 0 ? '+' : '') + (b.error * 100).toFixed(1) + '%)' : '') +
+    '</td><td class="mono">' + b.watts_each.toFixed(2) + ' W</td><td class="mono"' + (b.volts_ok ? '' : ' style="color:var(--amber)"') + '>' +
+    b.volts_peak_each.toFixed(0) + ' V</td></tr>').join('');
+  const hot = plan.banks.some(b => !b.volts_ok);
+  out.innerHTML = head +
+    '<table class="data mt"><thead><tr><th>Bank</th><th>Wired</th><th>Total</th><th>Each carries</th><th>Peak volts each</th></tr></thead><tbody>' +
+    rows + '</tbody></table>' +
+    (hot ? '<div class="tiny" style="color:var(--amber)">A bank in amber puts more than ' + RESISTOR_VOLTS + ' V peak across each part, ' +
+      'which is past what many small resistors are rated for - read the datasheet, or take a bank with more in series.</div>' : '') +
+    '<div class="tiny muted" style="margin-top:.35rem">Every part the same value and rating, so they share the heat equally. ' +
+    'Non-inductive only - metal oxide, carbon composition or film, or thick-film on a heat sink; never wirewound. ' +
+    'Before it goes up, the meter should read the total within a few percent.</div>';
+}
+
+['bt-ohms', 'bt-watts', 'bt-share', 'bt-duty', 'bt-each', 'bt-series', 'bt-have', 'bt-margin'].forEach(id => {
+  const el = document.getElementById(id);
+  if (el) { el.addEventListener('input', benchTerminator); el.addEventListener('change', benchTerminator); }
+});
+if (document.getElementById('bt-out')) benchTerminator();
 if (document.getElementById('bn-go')) { document.getElementById('bn-go').addEventListener('click', benchNear); benchNear(); }
 if (document.getElementById('bc-go')) { document.getElementById('bc-go').addEventListener('click', benchAnalyser); benchAnalyser(); }
 if (document.getElementById('bd-go')) { document.getElementById('bd-go').addEventListener('click', benchDrop); benchDrop(); }

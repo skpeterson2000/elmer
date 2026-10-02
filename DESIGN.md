@@ -48,8 +48,9 @@ build step. The dependencies are Flask, Pillow, reportlab, numpy and scipy;
 everything else, including the QR encoder, is the standard library. numpy
 and scipy are there for the numerical work, and scipy is imported only
 inside the functions that use it. poppler-utils is
-wanted only to rebuild the pools or read PDFs on the library shelf, pyserial
-only to talk to a NanoVNA, and the self-check says which is missing.
+wanted only to rebuild the pools or read PDFs on the library shelf, and the
+self-check says when it is missing. pyserial, to talk to a NanoVNA, is a
+default since 2026-10-01.
 
 **License:** [PolyForm Noncommercial 1.0.0](LICENSE) — free for personal
 study, clubs, schools and other noncommercial use; not for commercial use;
@@ -101,7 +102,10 @@ spot feed sampled every twenty minutes while the unit is on, and a park's or
 summit's record from POTA and SOTA when one is picked — and for what you ask
 it to look up, a callsign or a place - including the ground at a spot you ask
 to have rated, which sends that spot's coordinates to the USDA soil survey,
-the USGS water survey and the elevation service, and nothing else; nothing
+the USGS water survey and the elevation service, and nothing else - and, when
+you press **Check its firmware** with a NanoVNA V2 on the Tools page, the
+vendor's public firmware page at nanorfe.com, read to see whether it lists a
+release ELMER does not know; nothing
 about you travels with those requests beyond the thing asked. The moon, the meteor calendar and the sun come
 from a clock and arithmetic, and fetch nothing. Two things can be sent
 *from* a unit, and both are entirely voluntary: a **problem report**, when you
@@ -592,6 +596,14 @@ because they carry very different authority:
   the way a weather map numbers its isobars: a few to a line, turned to run
   along it, the inner loops labelled first and every number kept clear of
   the station's mark. The plain map has the numbers too.
+
+  That was a misreading, and Scott corrected it: "cloud" was the overlay's
+  kind - a layer lying over the ground, thin and dense, as on a weather
+  map - not its color. A white overlay made every band look the same, and
+  the band's color is what tells one band from another everywhere in ELMER.
+  So the overlay is the band's own color, paling toward white only at the
+  very top as the plain map's ramp does, and the isolines are a dark shade
+  of it so they show on the overlay and on the ground alike.
 
   **Cloud** sets the cloud's strength, 0 to 100%, opening at 85. It fades
   the cloud alone; the isolines and their numbers stay at full strength, so
@@ -1476,6 +1488,34 @@ The V-beam and the rhombic are the first of the higher-gain antennas asked for, 
 ### The beams, on published figures
 
 The V and the rhombic are independent wires, and the travelling-wave sum works their patterns out. A Moxon, a hexbeam or a quad gets its gain from its elements coupling to one another, which a sum of independent wires cannot do; that takes a moment-method model (NEC), and ELMER does not carry one. So these carry their designers' published figures, named in their advice: L. B. Cebik's for the Moxon (5.8 dBi in free space and over 30 dB front to back in #14 wire, dimensions worked back from his table) and the two-element quad (about 7.1 dBi and 24 dB at 0.125 wavelength), S. Hunt G3TXQ's for the broadband hexbeam (his dimensions band by band, his peak gain and front to back). Cebik's articles are read from the archive of them, since cebik.com is gone. In the pattern code the Yagi's special cases became `patterns.BEAMS`: each beam's front to back and the width of its front lobe, the Yagi's unchanged. A beam's published dimensions are shown as published, not rescaled for the wire as a rule-of-thumb antenna's are (`tests/test_beams.py`).
+
+### A dipole's feed over real ground
+
+The feed resistance against height was the textbook's: the wire's 73 ohms less its mutual resistance with a perfect mirror image of itself, which falls toward nothing as the wire comes down. Scott challenged the 0 ohms at the foot of the plot, rightly - over real soil the reflection is partial and turned, and the soil absorbs power, which shows at the feed as resistance. Now the image is weighted by the ground's own reflection at normal incidence (`patterns.fresnel`, average soil, the band's frequency): Z = Z11 + Gamma Z12(2h), with the mutual reactance (Kraus, a hand-written sine integral beside the cosine one) because a complex Gamma mixes it in. Gamma = -1 gives the textbook back, and the textbook is still drawn, dotted. What the image method leaves out is the near-field soil loss, which below about a tenth of a wave adds more resistance still; the plot says to read it there as a floor. The heights table, the SWR, the match-height advice and the sheet all read the real-ground curve, so the page cannot print two match heights (`tests/test_antenna_advice.py`, `test_v_feedpoint.py`, `test_reachable_height.py`).
+
+### The terminator calculator
+
+A terminated antenna's resistor is a real load - the Marine Corps' Antenna Handbook sizes it for half the transmitter's output - and it is built from small parts, so the meter bench has a card for it and a calculator (`bench.termination_bank`, mirrored in `bench.js` as `terminationBank`). It only builds banks of identical resistors, `s` in series and `p` strings in parallel, because only then is the heat shared equally; a mixed bank is cheaper to describe and cooks its smallest part. The heat is the share times the mode's average times a margin (1.5 by default, for a box in the sun), and that sets the fewest parts; the search looks up to a quarter beyond that count and no further unless the values to hand cannot reach the target at all - six of the handbook's 106 ohm resistors is the case that needed it. Within ten percent counts, because a terminator's right value is where the SWR varies least and that minimum is broad. Banks are ranked by the peak voltage on one part (350 V, a common rating for small film and composition resistors, is the line), then by whether the value is within 2%, then by not being a wide fan of parallel parts, then by count; the fewest-parts bank is always shown. `tests/test_bench.py` holds the Python to the right answers, and `tests/test_bench_js.py` holds the page's arithmetic to the Python on the Tools page as served.
+
+### The NanoVNA V2 (S-A-A-2), calibrated by ELMER
+
+ELMER spoke the original NanoVNA's shell - `scan`, `data`, the `ch>` prompt - and a V2 has none: it reads and writes registers over a binary protocol, and what it sends is raw. Its own calibration is applied to its own screen, not to the USB data. Scott's S-A-A-2 was found on the bench as USB 04b4:0008, and it answered for itself - device variant 2, protocol 1, hardware revision 3, firmware 1.2 - so the driver in `nanovna.py` is written against the instrument as well as the protocol. Hardware revision 3 is the V2 Plus, which the vendor also calls the V2.3 (the firmware source sets it from each board's BOARD_REVISION: 2 is the V2_2, 4 the Plus4); "S-A-A-2" is the family, and the page names the model.
+
+Its firmware can be checked, not written. There is no machine-readable index of releases - the vendor's GitHub releases stop at 20201013 and carry no files, and current images are linked only from its web page, with no checksums - so ELMER keeps a table of the official V2 Plus images by hand (`nanovna.V2_FIRMWARE`), each fetched and its SHA-256 taken here. Releases are named by date, and the major.minor the instrument reports is not a release name: 1.2 is the stable 20201013 build, and the experimental 20210726 build is believed to report 1.2 as well, so the page says the instrument cannot tell which and names both. **Check its firmware** also reads the vendor's page, on the press, for any image of this model ELMER does not know. Writing firmware is the vendor's procedure, from the instrument's bootloader, which the page points to; the bootloader answers on the same USB id with 0xFF in its firmware-major register, and ELMER recognises it and does not try to sweep it. It sets the span by register, clears the FIFO and reads the 32-byte records back, taking S11 as rev0/fwd0 at each point; 101 points take under two seconds.
+
+The calibration is ELMER's, because it has to be the host's: the page's own OPEN, SHORT, LOAD and DONE buttons measure each standard over the V2's span, work out the three one-port error terms at every point (directivity, source match and tracking, from an ideal open, short and load), keep them on the unit (`vna_v2_cal.json` under the state folder) and correct every sweep over that span, straight between the calibration's points and never stretched past them. A sweep says whether it was corrected, and how much of it lay outside. The standards are checked before they are used: an open and a short read about twice the tracking term apart and a load sits between them, so three readings of whatever was on the port - which a first test on the bench showed were otherwise accepted, because two sweeps of the same thing never read exactly alike - are refused with which standard looks wrong. `tests/test_nanovna_v2.py` runs it all against a simulated V2 whose bridge has known, frequency-drifting error terms, so a calibrated sweep can be held to the load really on the port: 75, 25-j30 and 50+j50 ohms each read back within 0.6 ohm.
+
+Every register write puts the V2 in "USB MODE": its screen stops plotting and its menus wait. The protocol has no registers for what that screen shows - traces, markers, format - so ELMER cannot drive the display, but the firmware does have a way out (register 0x26 = 2, in `main2.cpp`'s `cmdRegisterWrite` since 2020-05-01, well before the 1.2 builds), and ELMER writes it at the end of every V2 operation, guarded so it is never typed into a shell instrument. Handing it back has a cost the driver pays for: the V2 has one FIFO for its own screen's sweep and for USB, so before every read ELMER rewrites the points register - which switches the hardware to ELMER's span on the spot - and waits a moment before clearing the FIFO, so a point of the screen's own sweep cannot land in ELMER's. The firmware can also send a picture of its screen (register 0xEE), but that arrived on 2020-10-27, after the stable 20201013 build, so whether this unit has it is not known and ELMER does not ask.
+
+The Tools page draws the sweep on a Smith chart beside the SWR chart (`vnaSmith` in `lab.js`), reusing the Lab's grid with its type enlarged for the smaller chart. Everything on it is against 50 ohms, the instrument's reference; a model on 75 ohm or window line is re-referenced from its own R and X, so the model and the measurement can share one chart.
+
+pyserial became a default at the same time, in `requirements.txt`, `install.sh` (apt's python3-serial), `install.ps1` and the self-check; a unit set up without it could not talk to the instrument at all.
+
+### Drawings on the printed sheet
+
+The sheet went out to the garden as tables. Scott asked for a diagram, and it has two, drawn by `antennadraw.py` in reportlab - already a dependency - from the numbers the sheet prints: the build sketch from the cut table and the antenna's own formulas, the patterns from `patterns.py`, the module that draws the Lab's. Nothing comes from the browser, for the same reason the sheet recomputes its tables: a picture that disagreed with the table beside it would be worse than none. The sketch is to scale where scale says something - a V's droop, a vertical's radials, a terminated wire nearly flat along the grass because 500 ft on a 35 ft mast is - and schematic where it would not, a Yagi's elements in outline. Labels follow the operator's units. A drawing that cannot be made is logged and left out; the tables still print (`tests/test_sheet_drawings.py`).
+
+Scott then asked for the footprint by day and by night, and caught the first draft: it drew 20 m at night landing 400 to 1,300 miles out, which is where the lobe would come down if the layer turned it back - and after dark it mostly does not. A sheet cannot know the hour it will be used at, so each map asks ELMER's own sky (`propagation.levels`, the one place foF2 is made) at a noon sun and the dead of night, at the station's latitude and the solar flux last read from the cache - never a fetch, and a stated typical 100 with none. A band above that sky's MUF is drawn shut; an open one lands past that sky's skip (`propagation.skip_km`, as the reach map gates), and where the whole lobe falls inside it the pale ring is the pattern's low edge, as the Lab says (`antennadraw.typical_sky`).
 
 ### Verticals with a direction
 
@@ -5901,10 +5941,10 @@ ELMER is written in; git is how it updates itself; poppler reads the NIFOG
 channel PDF and the manuals on the shelf, and everything else works without
 it. `-Yes` answers for you, for a machine you are setting up in one go;
 `-NoInstall` only reports, for one somebody else looks after. Then it builds
-a virtual environment in `.venv` and puts Flask, Pillow, reportlab, numpy
-and scipy in it.
-`-Shortcut` adds a Start Menu entry, `-Serial` adds pyserial so the Lab can
-talk to a NanoVNA.
+a virtual environment in `.venv` and puts Flask, Pillow, reportlab, numpy,
+scipy and pyserial in it.
+`-Shortcut` adds a Start Menu entry. `-Serial`, which used to add pyserial,
+is still accepted and does nothing: pyserial comes with every install now.
 
 **The window, and closing it.** On Windows ELMER opens in a window of its
 own - Edge or Chrome as an *app window*, in a profile of ELMER's own, so it

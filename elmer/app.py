@@ -1827,7 +1827,7 @@ def api_pattern():
         droop = max(0.0, min(60.0, float(request.args.get("droop") or antenna_advice.DEFAULT_DROOP_DEG)))
     except ValueError:
         droop = antenna_advice.DEFAULT_DROOP_DEG
-    feed_r = antenna_advice.feed_r_at(str(kind), height_wl, droop)
+    feed_r = antenna_advice.feed_r_at(str(kind), height_wl, droop, mhz=mhz)
     # A fatter element is a lower-Q element and a lower-Q element holds its
     # SWR across more of the band. The bowtie is left alone: its Q already
     # comes from the width of the triangle, and scaling that by the gauge of
@@ -2042,6 +2042,24 @@ def api_vna_identify():
         abort(400)
     info, error = nanovna.identify(device)
     return jsonify({"ok": info is not None, "info": info, "error": error})
+
+
+@app.route("/api/vna/firmware")
+def api_vna_firmware():
+    """What ELMER knows about a V2's firmware, and - only when asked with
+    online=1, on the operator's press - whether the vendor's page lists
+    something newer. Nothing is ever written to the instrument from here."""
+    device = request.args.get("device") or ""
+    if not host.is_serial_device(device):
+        abort(400)
+    info, error = nanovna.identify(device)
+    if info is None or info.get("family") != "v2" or info.get("bootloader"):
+        return jsonify({"ok": False, "error": error or "this is not a V2 running its firmware"})
+    out = {"ok": True, "model": info.get("model"), "updates": info.get("updates")}
+    if request.args.get("online") == "1":
+        page, page_error = nanovna.firmware_page_check(info.get("hardware_revision"))
+        out["page"], out["page_error"] = page, page_error
+    return jsonify(out)
 
 
 @app.route("/api/vna/controls")
@@ -2354,11 +2372,18 @@ def api_antenna_pdf():
     license_class = (settings.get("license_class")
                      or (settings.get("license") or {}).get("license_class")
                      or "Technician")
+    # The station's latitude, for the footprint's typical day and night sky;
+    # none set, and the sheet says it drew a mid-latitude one.
+    try:
+        lat = qth_for(conn(), db.get_profile(conn())).get("lat")
+    except Exception:
+        log.info("no QTH for the sheet's footprint; drawing a mid-latitude sky", exc_info=False)
+        lat = None
     pdf = antennapdf.build(kind, mhz, height_ft, conductor, site,
                            use=body.get("use") or None,
                            callsign=profile_callsign() or "",
                            license_class=license_class,
-                           unit=units.system(settings.get("units"))["key"])
+                           unit=units.system(settings.get("units"))["key"], lat=lat)
     title = (antenna_advice.TYPES.get(kind) or {}).get("title", kind)
     name = f"antenna-{kind}-{mhz:.3f}mhz.pdf".replace(" ", "-")
     log.info("antenna sheet PDF: %s at %.3f MHz, %.0f ft, %s",

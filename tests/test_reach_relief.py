@@ -102,7 +102,7 @@ new Promise(async resolve => { try {
   out.strongest = strong >= 0 ? Math.round(f.score[strong]) : null;
   out.found = [strong >= 0 && f.score[strong] >= 70, lines.length > 100];
   // most of them: a coastline, a border or a number drawn over a few is fine
-  const ink = () => REACH_RGB.map(c => Math.round(c * 0.85));
+  const ink = () => REACH_RGB.map(c => Math.round(c * 0.4));
   const inked = () => { const k = ink(); return lines.filter((i, n) => n % 9 === 0).map(at).filter(c => c.every((v, j) => Math.abs(v - k[j]) <= 2)).length; };
   const line = lines[0];
   const set = async pct => { cloud.value = pct; cloud.dispatchEvent(new Event('input')); await nap(250); };
@@ -111,7 +111,10 @@ new Promise(async resolve => { try {
   await set(0);
   const strong0 = at(strong), line0 = at(line);
   const ground = [f.ground[strong * 3], f.ground[strong * 3 + 1], f.ground[strong * 3 + 2]];
-  out.clouded = strong85.reduce((s, c, i) => s + c - strong0[i], 0) > 60;       // the cloud is lighter than the ground under it
+  out.clouded = strong85.reduce((s, c, i) => s + Math.abs(c - strong0[i]), 0) > 60;   // the overlay covers the ground
+  // and it is the band's own color: the pixel's channels rank as the band's do
+  const rank = c => [0, 1, 2].sort((a, b) => c[b] - c[a]).join('');
+  out.bandHue = [rank(strong85) === rank(REACH_RGB), rank(REACH_RGB)];
   out.bare = strong0.every((c, i) => Math.abs(c - ground[i]) <= 2);
   out.lineSteady = line85.every((c, i) => Math.abs(c - line0[i]) <= 2);
   const sampled = lines.filter((i, n) => n % 9 === 0).length;
@@ -189,10 +192,12 @@ def main():
 
     print("\n-- the slider fades the cloud alone --")
     check(f"a strong place (best {got.get('strongest')}) and isolines were found on the map", got.get("found"), [True, True])
-    check("at 85% a strong place is cloud, lighter than the ground", got.get("clouded"), True)
+    check("at 85% a strong place is covered by the overlay", got.get("clouded"), True)
+    check("  in the band's own color, not white - the band is the band on every map",
+          (got.get("bandHue") or [False])[0], True)
     check("at 0% it is the ground itself", got.get("bare"), True)
     check("an isoline is the same whatever the slider says", got.get("lineSteady"), True)
-    check(f"  and drawn in the band's color ({got.get('inkShare')} sampled)", got.get("lineInk"), True)
+    check(f"  and drawn in a dark shade of the band's color ({got.get('inkShare')} sampled)", got.get("lineInk"), True)
     check("moving the slider blends again rather than working the map out again", got.get("fieldKept"), True)
     check("the slider's setting is kept", got.get("sliderKept"), 0)
 

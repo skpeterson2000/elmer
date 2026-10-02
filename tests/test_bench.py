@@ -63,6 +63,38 @@ def main():
     check("  and on 160 m, over eighty", round(B.near_field_ft(1.9)), 82)
     check("the analyser says whether to cut at all - a permanent home cuts, the field does not",
           "If it travels, do not" in B.analyser_reading(35, 22)["where"], True)
+    print("\n-- the terminator --")
+    plan = B.termination_bank()
+    check("600 ohms at 100 W: half of it, 50 W, rated half again", (plan["dissipate"], plan["rated"]), (50.0, 75.0))
+    check("  at least 38 resistors of 2 W", plan["fewest"], 38)
+    check("  every bank carries the heat", all(b["parts"] * 2 >= 75 for b in plan["banks"]), True)
+    check("  and lands within ten percent", all(abs(b["total"] / 600 - 1) <= 0.10 for b in plan["banks"]), True)
+    check("  forty 1.5k in four-by-ten is offered, exactly 600",
+          any((b["series"], b["parallel"], b["value"], b["total"]) == (4, 10, 1500.0, 600.0) for b in plan["banks"]), True)
+    check("  each part carries its equal share",
+          all(abs(b["watts_each"] - 50 / b["parts"]) < 0.001 for b in plan["banks"]), True)
+    hand = B.termination_bank(values=[106], each_watts=100, margin=1)
+    check("the handbook's 106 ohm, 100 W resistors: six in series, 636 ohms",
+          [(b["series"], b["parallel"], b["total"]) for b in hand["banks"]], [(6, 1, 636.0)])
+    big = B.termination_bank(tx_watts=1500, each_watts=5)
+    check("1500 W needs 225 parts of 5 W, and finds banks of them", (big["fewest"], len(big["banks"]) > 0), (225, True))
+    check("  a wide fan in parallel is flagged by its voltage, or not offered first",
+          all(b["volts_ok"] for b in big["banks"][1:]), True)
+    check("  peak volts on one part of a single string: the whole share across it",
+          B.termination_bank(values=[600], each_watts=100, margin=1)["banks"][0]["volts_peak_each"],
+          round((100 * 0.5 * 600) ** 0.5 * 2 ** 0.5, 1))
+    check("SSB voice heats it about a third as much as a carrier", B.termination_bank(duty=0.3)["dissipate"], 15.0)
+    check("nonsense is no answer", (B.termination_bank(target_ohms=0), B.termination_bank(each_watts=0)), (None, None))
+    check("a value that cannot get there says so with no banks",
+          B.termination_bank(values=[1], tolerance=0.10, max_parts=20)["banks"], [])
+    check("the E12 series is the dozen everyone knows", B.series_values("E12")[:12],
+          [1.0, 1.2, 1.5, 1.8, 2.2, 2.7, 3.3, 3.9, 4.7, 5.6, 6.8, 8.2])
+    card = next(c for b in B.BENCHES for c in b["cards"] if c["title"].startswith("The terminator"))
+    check("the card says never wirewound, and names the exam's wirewound question",
+          ("Never wirewound" in card["how"], "G6A06" in card["exam"]), (True, True))
+    check("  and in oil: the right oils, the PCB warning, and a sweep in its can",
+          ("mineral oil" in card["aside"]["text"], "PCBs" in card["aside"]["text"],
+           "sweep the bank in its oil, in its can" in card["aside"]["text"]), (True, True, True))
     noise = next(c for b in B.BENCHES for c in b["cards"] if c["title"].startswith("Noise"))
     check("the noise card names the transformer and the near field", "transformer" in noise["what"] and "near field" in noise["how"], True)
     check("  and the one measurement: the S-meter against a dummy load", "dummy load" in noise["reads"], True)

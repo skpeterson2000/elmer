@@ -3706,14 +3706,18 @@ function matchingHeightsHTML(d) {
       : '') +
     far.slice(0, 3).map(line).join('') + '</table>' + anywhere +
     '<p class="tiny muted">The feedpoint swings with height because the wire sees its own ' +
-    'reflection in the ground; the period is half a wavelength. Perfect-ground figures - real ' +
-    'ground damps the swings and shifts them a little. None of these is a height to stop at: ' +
+    'reflection in the ground; the period is half a wavelength. These heights are the textbook\'s, over ' +
+    'perfect ground; the curve above is drawn over average ground, where the swings are smaller and the ' +
+    'resistance does not fall toward nothing near the ground - a real yard reflects only part of the wave ' +
+    'and absorbs some, and near the ground its loss adds more resistance still. None of these is a height to stop at: ' +
     'the worst of them costs half a decibel of match, and the angle the wire fires at is worth ' +
     'far more than that, sending and receiving alike. The pattern at your height is drawn below.</p>';
 }
 
-/* The graph: feedpoint resistance (solid, left axis) and takeoff angle
-   (dashed, right axis) against height in feet, the 50 ohm line, the height
+/* The graph: feedpoint resistance over average ground (solid, left axis),
+   the perfect-ground textbook beside it (dotted) - which falls toward nothing
+   near the ground, as no real yard does - and takeoff angle (dashed, right
+   axis) against height in feet, the 50 ohm line, the height
    to aim for, and the ground the site cannot reach shaded. The point of it
    is the shape - the resistance wobbles within a decibel of 50 while the
    angle falls from the zenith to where DX is - so the reader sees why the
@@ -3727,6 +3731,19 @@ function heightGraphSVG(d) {
   const ohmsMax = 110, Y = o => T + (1 - o / ohmsMax) * (H - T - B);
   const Ya = a => T + (1 - a / 90) * (H - T - B);
   const rLine = pts.map((p, i) => (i ? 'L' : 'M') + X(p.ft).toFixed(1) + ',' + Y(p.ohms).toFixed(1)).join(' ');
+  const tLine = pts[0].ohms_perfect != null
+    ? pts.map((p, i) => (i ? 'L' : 'M') + X(p.ft).toFixed(1) + ',' + Y(p.ohms_perfect).toFixed(1)).join(' ')
+    : '';
+  /* Where the real-ground curve crosses 50 ohms, found on the curve drawn,
+     so the mark sits on the line it names. */
+  const matches = [];
+  for (let i = 1; i < pts.length; i++) {
+    const a = pts[i - 1], b = pts[i];
+    if ((a.ohms - 50) * (b.ohms - 50) <= 0 && a.ohms !== b.ohms) {
+      const t = (50 - a.ohms) / (b.ohms - a.ohms);
+      matches.push({ft: Math.round(a.ft + t * (b.ft - a.ft)), takeoff: Math.round(a.takeoff + t * (b.takeoff - a.takeoff))});
+    }
+  }
   const aLine = pts.map((p, i) => (i ? 'L' : 'M') + X(p.ft).toFixed(1) + ',' + Ya(p.takeoff).toFixed(1)).join(' ');
   const aim = d.height_ft && d.height_ft >= x0 && d.height_ft <= x1 ? X(d.height_ft) : null;
   const reach = d.reach_ft && d.reach_ft < x1 ? X(Math.max(d.reach_ft, x0)) : null;
@@ -3739,13 +3756,15 @@ function heightGraphSVG(d) {
       '" height="' + (H - T - B) + '" class="unreach"/>' : '') +
     '<line x1="' + L + '" y1="' + Y(50).toFixed(1) + '" x2="' + (W - R) + '" y2="' + Y(50).toFixed(1) + '" class="fifty"/>' +
     '<text x="' + (L + 3) + '" y="' + (Y(50) - 3).toFixed(1) + '" class="lbl">50 \u03a9</text>' +
+    (tLine ? '<path d="' + tLine + '" class="ohms" style="stroke-dasharray:1.5 3;opacity:.55"/>' : '') +
     '<path d="' + rLine + '" class="ohms"/>' +
     '<path d="' + aLine + '" class="angle"/>' +
     (aim !== null ? '<line x1="' + aim.toFixed(1) + '" y1="' + T + '" x2="' + aim.toFixed(1) + '" y2="' + (H - B) + '" class="aim"/>' +
       '<text x="' + (aim + 4).toFixed(1) + '" y="' + (T + 10) + '" class="lbl aimlbl">aim: ' + d.height_ft + ' ft</text>' : '') +
-    (d.heights || []).filter(r => r.what === 'match').map(r =>
-      '<circle cx="' + X(r.ft).toFixed(1) + '" cy="' + Y(r.ohms).toFixed(1) + '" r="3.5" class="mark"/>' +
-      '<text x="' + (X(r.ft) + 5).toFixed(1) + '" y="' + (Y(r.ohms) + 12).toFixed(1) + '" class="lbl">match ' + r.ft + ' ft, ' + r.takeoff + '\u00b0 up</text>').join('') +
+    matches.slice(0, 2).map(r =>
+      '<circle cx="' + X(r.ft).toFixed(1) + '" cy="' + Y(50).toFixed(1) + '" r="3.5" class="mark"/>' +
+      '<text x="' + (X(r.ft) + 5).toFixed(1) + '" y="' + (Y(50) + 12).toFixed(1) + '" class="lbl">match ' + r.ft + ' ft, ' + r.takeoff + '\u00b0 up</text>').join('') +
+    (tLine ? '<text x="' + (L + 3) + '" y="' + (H - B - 4) + '" class="lbl">solid: average ground \u00b7 dotted: perfect ground, the textbook</text>' : '') +
     ticks.map(f => '<text x="' + X(f).toFixed(1) + '" y="' + (H - 8) + '" class="tick">' + f + '</text>').join('') +
     '<text x="' + (W / 2) + '" y="' + (H - 0) + '" class="tick" style="font-weight:700">height, ft</text>' +
     '<text x="2" y="' + (Y(100) + 4).toFixed(1) + '" class="tick ohmlbl">100 \u03a9</text>' +
@@ -4308,7 +4327,8 @@ function smXY(x, y) {          // reflection coefficient -> pixels
   return [SM_CX + x * SM_R, SM_CY - y * SM_R];
 }
 
-function smithGrid(z0) {
+function smithGrid(z0, textScale) {
+  const fs = n => Math.round(n * (textScale || 1));   // a small chart needs larger type
   const g = [];
   g.push('<clipPath id="sm-clip"><circle cx="' + SM_CX + '" cy="' + SM_CY +
          '" r="' + SM_R + '"/></clipPath>');
@@ -4342,20 +4362,20 @@ function smithGrid(z0) {
       g.push('<line x1="' + tx.toFixed(1) + '" y1="' + (SM_CY - 3) + '" x2="' +
              tx.toFixed(1) + '" y2="' + (SM_CY + 3) + '" stroke="#6b7784"/>');
       g.push('<text x="' + tx.toFixed(1) + '" y="' + (SM_CY + 15) +
-             '" fill="#8b98a5" font-size="9" text-anchor="middle">' +
+             '" fill="#8b98a5" font-size="' + fs(9) + '" text-anchor="middle">' +
              Math.round(r * z0) + '&#937;</text>');
     });
   }
   g.push('<text x="' + (SM_CX - SM_R + 4) + '" y="' + (SM_CY - 9) +
-         '" fill="#8b98a5" font-size="10">short</text>');
+         '" fill="#8b98a5" font-size="' + fs(10) + '">short</text>');
   g.push('<text x="' + (SM_CX + SM_R - 4) + '" y="' + (SM_CY - 9) +
-         '" fill="#8b98a5" font-size="10" text-anchor="end">open</text>');
+         '" fill="#8b98a5" font-size="' + fs(10) + '" text-anchor="end">open</text>');
   g.push('<text x="' + SM_CX + '" y="' + (SM_CY - 9) +
-         '" fill="#3fb950" font-size="10" text-anchor="middle">match</text>');
+         '" fill="#3fb950" font-size="' + fs(10) + '" text-anchor="middle">match</text>');
   g.push('<text x="' + (SM_CX + 6) + '" y="' + (SM_CY - SM_R + 16) +
-         '" fill="#8b98a5" font-size="10">+jX inductive</text>');
+         '" fill="#8b98a5" font-size="' + fs(10) + '">+jX inductive</text>');
   g.push('<text x="' + (SM_CX + 6) + '" y="' + (SM_CY + SM_R - 8) +
-         '" fill="#8b98a5" font-size="10">&minus;jX capacitive</text>');
+         '" fill="#8b98a5" font-size="' + fs(10) + '">&minus;jX capacitive</text>');
   return g.join('');
 }
 
@@ -5306,6 +5326,46 @@ function vnaChart(d, extra) {
     '<div class="tiny muted" style="margin-top:.2rem">' + legend + '</div>';
 }
 
+/* The same sweep on a Smith chart, beside the SWR chart. SWR is a magnitude
+   and throws the reactance away; this keeps it, so long against short - the
+   question SWR alone cannot answer - is which half of the chart the trace
+   crosses the middle line from. Everything here is drawn against 50 ohms,
+   because that is what the instrument measures against and what the radio
+   wants: a model on 75 ohm or window line is re-referenced from its own R and
+   X rather than drawn against its line, so the two traces share one chart. */
+function vnaSmith(d, measured) {
+  const rows = (d && d.rows) || [];
+  if (!rows.length && !(measured && measured.length)) return '';
+  const g50 = (r, x) => {                     // Z -> reflection against 50 ohms
+    const den = (r + 50) * (r + 50) + x * x;
+    return den > 0 ? [(r * r + x * x - 2500) / den, 100 * x / den] : [1, 0];
+  };
+  const line = (pts, colour, dash) => pts.length < 2 ? '' :
+    '<polyline points="' + pts.map(p => smXY(p[0], p[1]).map(n => n.toFixed(1)).join(',')).join(' ') +
+    '" fill="none" stroke="' + colour + '" stroke-width="3"' +
+    (dash ? ' stroke-dasharray="9 6"' : '') + ' opacity="0.9"/>';
+  const g = [smithGrid(50, 1.8)];
+  if (rows.length) {
+    g.push(line(rows.map(r => g50(r.r, r.x)), SX_SUN, false));
+    if (d.feet) g.push(line(rows.map(r => g50(r.r_in, r.x_in)), SX_GLASS, true));
+  }
+  if (measured && measured.length) {
+    g.push(line(measured.map(r => [r.gx, r.gy]), SX_OK, false));
+    /* Which end is the low frequency: a trace on a Smith chart has no axis,
+       and the direction it turns is half of what it says. */
+    const [sx, sy] = smXY(measured[0].gx, measured[0].gy);
+    g.push('<circle cx="' + sx.toFixed(1) + '" cy="' + sy.toFixed(1) + '" r="7" fill="' + SX_OK + '"/>');
+    g.push('<text x="' + (sx + 11).toFixed(1) + '" y="' + (sy + 5).toFixed(1) + '" fill="' + SX_OK +
+           '" font-size="20">' + (+measured[0].mhz).toFixed(3) + '</text>');
+  }
+  const note = d && d.z0 && d.z0 !== 50
+    ? ' The model is re-drawn against 50&nbsp;&#937;, not its ' + d.z0 + '&nbsp;&#937; line.' : '';
+  return '<svg viewBox="0 0 580 560" style="width:100%;max-width:360px">' + g.join('') + '</svg>' +
+    '<div class="tiny muted" style="margin-top:.2rem">Against 50&nbsp;&#937;. Center is the match; above the line ' +
+    'is inductive (a resonant antenna too long), below capacitive (too short)' +
+    (measured && measured.length ? '; the dot marks the low end of the sweep' : '') + '.' + note + '</div>';
+}
+
 /* The numbers under the trace: what a marker readout would say. */
 function vnaMarkers(d) {
   const a = d.antenna || {}, sh = d.shack || {};
@@ -5438,6 +5498,8 @@ async function vnUpdate() {
     measured: vnMeasured && vnMeasured.rows,
     lo: lo || d.low_mhz, hi: hi || d.high_mhz,
   });
+  const smith = document.getElementById('vn-smith');
+  if (smith) smith.innerHTML = vnaSmith(d, vnMeasured && vnMeasured.rows);
   window.vnLast = d;
 }
 
@@ -5485,6 +5547,21 @@ function vnPorts(list, error) {
    reason, puts that reason in front of the operator, and only then asks again
    having said it meant it. The page does not carry its own copy of what is
    dangerous, so the two cannot drift apart. */
+/* A V2 (S-A-A-2) sends raw readings and is calibrated by ELMER, not by
+   itself, so what ELMER holds for it is said wherever it matters: after
+   "Ask what it is", and with every sweep. */
+function vnCalWords(c) {
+  if (!c) return '';
+  if (!c.has) {
+    return 'No calibration yet: ELMER calibrates a V2 itself. Set the span, then put the OPEN, ' +
+      'SHORT and LOAD on the end of the jumper in turn, pressing each one\'s button below, then DONE.' +
+      (c.measured && c.measured.length ? ' Measured so far: ' + c.measured.join(', ').toUpperCase() + '.' : '');
+  }
+  return 'ELMER\'s calibration: ' + c.low_mhz + '\u2013' + c.high_mhz + ' MHz, ' + c.points +
+    ' points, made ' + escapeHTML(String(c.made || '').replace('T', ' ')) + ' UTC' +
+    (c.applied ? ', applied.' : ', <b>not applied</b> \u2014 sweeps are raw.');
+}
+
 function vnCtlEnable(on) {
   document.querySelectorAll('[data-vna]').forEach(b => { b.disabled = !on; });
 }
@@ -5556,6 +5633,7 @@ async function vnControl(button, confirmed) {
     ? ' &middot; now sweeping <b>' + r.span.low_mhz + '–' + r.span.high_mhz +
       ' MHz</b> over ' + r.span.points + ' points'
     : '';
+  if (r.calibration) vnCtlSay(vnCalWords(r.calibration), 'var(--line-2)');
   vnCtlSay('<span class="mono">' + escapeHTML(r.sent) + '</span> &rarr; ' +
     (r.said ? '<span class="mono">' + escapeHTML(r.said) + '</span>'
             : '<span class="muted">accepted without comment</span>') + span,
@@ -5619,14 +5697,54 @@ if (document.getElementById('vn-chart')) {
     document.getElementById('vn-dev').textContent = 'asking ' + dev + '…';
     try {
       const d = await api('/api/vna/identify?device=' + encodeURIComponent(dev));
+      const fwBtn = document.getElementById('vn-fw');
+      if (fwBtn) fwBtn.hidden = !(d.ok && d.info.family === 'v2' && !d.info.bootloader);
       document.getElementById('vn-dev').innerHTML = d.ok
         ? '<b>' + escapeHTML(dev) + '</b> answers:<pre class="mono tiny" ' +
           'style="white-space:pre-wrap;margin:.3rem 0">' +
           escapeHTML((d.info.info || '') + '\n' + (d.info.version || '')).trim() +
-          '</pre>'
+          '</pre>' + (d.info.family === 'v2'
+            ? (d.info.updates ? '<div class="small">' + escapeHTML(d.info.updates.words) + '</div>' : '') +
+              '<div class="small">' + vnCalWords(d.info.calibration) + '</div>'
+            : '')
         : '<span style="color:var(--amber)">' + escapeHTML(d.error) + '</span>';
     } catch (err) {
       document.getElementById('vn-dev').textContent = 'no answer from ' + dev;
+    }
+    e.target.disabled = false;
+  });
+
+  /* A V2's firmware: the official releases ELMER knows for its model, with
+     what each changed and its checksum, and then the vendor's own page asked
+     whether it lists anything newer. The instrument cannot say which of two
+     builds that both report 1.2 it is running, and this says so. Nothing is
+     written to the instrument: updating it is the vendor's procedure, from
+     its bootloader, and the page points there. */
+  const fwBtn = document.getElementById('vn-fw');
+  if (fwBtn) fwBtn.addEventListener('click', async e => {
+    const dev = document.getElementById('vn-port').value;
+    e.target.disabled = true;
+    const box = document.getElementById('vn-dev');
+    box.innerHTML = 'reading the firmware from ' + escapeHTML(dev) + ' and asking the vendor\'s page\u2026';
+    try {
+      const d = await api('/api/vna/firmware?online=1&device=' + encodeURIComponent(dev));
+      if (!d.ok) { box.innerHTML = '<span style="color:var(--amber)">' + escapeHTML(d.error) + '</span>'; }
+      else {
+        const u = d.updates || {};
+        box.innerHTML = '<b>' + escapeHTML(d.model || 'NanoVNA V2') + '</b>, reporting firmware ' +
+          escapeHTML(u.reported || '?') + '. ' + escapeHTML(u.words || '') +
+          (u.releases ? '<ul class="small" style="margin:.4rem 0">' + u.releases.map(r =>
+            '<li><b>' + escapeHTML(r.release) + '</b> (' + escapeHTML(r.status) + ') &mdash; ' + escapeHTML(r.notes) +
+            '. <a href="' + escapeHTML(r.url) + '">' + escapeHTML(r.url.split('/').pop()) + '</a>, ' + r.bytes.toLocaleString() +
+            ' bytes, SHA-256 <span class="mono tiny">' + escapeHTML(r.sha256) + '</span></li>').join('') + '</ul>' : '') +
+          (d.page ? '<div class="small">' + escapeHTML(d.page.words) + '</div>'
+                  : '<div class="small" style="color:var(--amber)">' + escapeHTML(d.page_error || '') + '</div>') +
+          '<div class="tiny muted">Updating is done from the instrument\'s bootloader, with the vendor\'s procedure ' +
+          '(<a href="' + escapeHTML(u.page || 'https://nanorfe.com/nanovna-firmware.html') + '">nanorfe.com</a>). ' +
+          'Use only an image for this exact model: a V2 Plus image on a Plus4, or the other way round, will not run.</div>';
+      }
+    } catch (err) {
+      box.textContent = 'could not check the firmware';
     }
     e.target.disabled = false;
   });
@@ -5654,7 +5772,9 @@ if (document.getElementById('vn-chart')) {
         // it was asked for - so the axis follows the data, not the request.
         vnFollowing({low_mhz: got.sweep.low_mhz, high_mhz: got.sweep.high_mhz,
                      points: got.sweep.points});
-        document.getElementById('vn-dev').innerHTML =
+        const calNote = got.sweep.calibration && got.sweep.calibration.note
+          ? '<div style="color:var(--amber)"><b>' + escapeHTML(got.sweep.calibration.note) + '</b></div>' : '';
+        document.getElementById('vn-dev').innerHTML = calNote +
           '<span style="color:var(--green)">' + got.sweep.points +
           ' points back from ' + escapeHTML(dev) + '.</span> The green trace is ' +
           'what it measured. Where it disagrees with the model, believe the ' +

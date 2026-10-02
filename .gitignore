@@ -114,6 +114,11 @@ data/supporters.roster
 # The last sweep off the VNA. A measurement of this operator's antenna, taken
 # on this bench - output, and theirs.
 data/sweep.json
+# ELMER's own calibration of a NanoVNA V2, measured on this unit's bench
+# with this unit's jumper - it belongs to the instrument in front of it.
+data/vna_v2_cal.json
+# Activity this operator has put off (activity.py) - theirs, not the repo's.
+data/deferred.json
 
 # The forecast's own ledger: what this unit said, what the sondes then read,
 # what it learned from the difference. Measured on this unit, about this sky.

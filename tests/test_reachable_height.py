@@ -60,8 +60,10 @@ def main():
     rows = A.matching_heights(3.535, A.reach_for("", None))
     reachable = [r["ft"] for r in rows if r["reachable"]]
     beyond = [r["ft"] for r in rows if not r["reachable"]]
-    check("on 80 m, the reachable landmarks", reachable, [45, 60])
-    check("  and 276 ft is not one of them", 276 in beyond, True)
+    # Over average ground, as the Lab's curve is drawn (the textbook's
+    # perfect ground put them at 45 and 60, and the wavelength crossing at 276).
+    check("on 80 m, the reachable landmarks", reachable, [36, 55])
+    check("  and 271 ft is not one of them", 271 in beyond, True)
     check("  every landmark is still listed, none hidden",
           len(reachable) + len(beyond), len(rows))
     check("  with a tower, they all come back",

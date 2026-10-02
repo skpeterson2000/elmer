@@ -28,7 +28,7 @@
 [CmdletBinding()]
 param(
     [switch]$Shortcut,      # put ELMER on the Start Menu
-    [switch]$Serial,        # add pyserial, for the NanoVNA in the Lab
+    [switch]$Serial,        # kept so old command lines still run; pyserial is always installed now
     [switch]$Yes,           # install whatever is missing without asking
     [switch]$NoInstall,     # only say what is missing; install nothing
     [switch]$Help
@@ -49,7 +49,7 @@ if ($Help) {
 
     powershell -ExecutionPolicy Bypass -File install.ps1
     ... -Shortcut     also put ELMER on the Start Menu
-    ... -Serial       also install pyserial, for the NanoVNA in the Lab
+    ... -Serial       (no longer needed - pyserial, for a NanoVNA, comes with every install)
     ... -Yes          install anything missing (Python, git, poppler) without asking
     ... -NoInstall    only say what is missing; install nothing
 
@@ -153,7 +153,7 @@ if (Test-Path $portable) {
     $vpy = $portable
     $v = (& $vpy -c "import sys; print('%d.%d' % sys.version_info[:2])").Trim()
     Ok "portable copy - python $v and the packages are bundled with it"
-    if ($Serial) { Ok "pyserial is bundled too - the Lab can talk to a NanoVNA" }
+    Ok "pyserial is bundled too - the Tools page can talk to a NanoVNA"
 } else {
 
 $py = Find-Python
@@ -211,11 +211,11 @@ if ($tw) {
     else { Warn "TowerWitch's packages would not install; the self-check offers a Fix for it" }
 }
 
-if ($Serial) {
-    & $vpy -m pip install --quiet pyserial
-    if ($LASTEXITCODE -eq 0) { Ok "pyserial installed - the Lab can talk to a NanoVNA" }
-    else { Warn "pyserial would not install; the VNA panel will say so" }
-}
+# pyserial is in requirements.txt now and came in with the rest; this only
+# says so, and says so plainly if it did not.
+& $vpy -c "import serial" 2>$null
+if ($LASTEXITCODE -eq 0) { Ok "pyserial installed - the Tools page can talk to a NanoVNA" }
+else { Warn "pyserial would not install; the VNA panel will say so" }
 
 }   # not portable
 

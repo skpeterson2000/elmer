@@ -14,6 +14,9 @@
       <p class="small" style="margin:.35rem 0"><b>How.</b> {{ card.how }}</p>
       <p class="small" style="margin:.35rem 0"><b>What it reads.</b> {{ card.reads }}</p>
       <p class="small muted" style="margin:.35rem 0"><b>Why.</b> {{ card.why }}</p>
+      {#- A card may carry one more paragraph under its own heading, for the
+          variation people ask about - the terminator in oil, say. -#}
+      {% if card.aside %}<p class="small" style="margin:.35rem 0"><b>{{ card.aside.title }}.</b> {{ card.aside.text }}</p>{% endif %}
       {% if calculators.get(card.title) %}{{ calculators[card.title]|safe }}{% endif %}
       {% set asked = [] %}
       {% for qid in card.exam %}{% if questions.get(qid) %}{% set _ = asked.append(questions[qid]) %}{% endif %}{% endfor %}

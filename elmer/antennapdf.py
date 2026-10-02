@@ -31,7 +31,7 @@ from reportlab.graphics.shapes import Line, Rect
 from reportlab.platypus import (KeepTogether, Paragraph, SimpleDocTemplate,
                                 Spacer, Table, TableStyle)
 
-from . import antenna_advice, bandplan, bandpdf, conductors, patterns, units
+from . import antenna_advice, antennadraw, bandplan, bandpdf, conductors, manuals, patterns, units
 
 INK = colors.HexColor("#1a1a1a")
 MUTED = colors.HexColor("#555555")
@@ -328,7 +328,7 @@ def dimensions(kind, mhz, conductor_key):
 
 
 def build(kind, mhz, height_ft, conductor_key="wire14", site="house",
-          use=None, callsign="", nvis=False, license_class="Extra", unit=None):
+          use=None, callsign="", nvis=False, license_class="Extra", unit=None, lat=None):
     """The sheet, as PDF bytes.
 
     A cut sheet goes to the garage with somebody and gives both systems,
@@ -364,7 +364,7 @@ def build(kind, mhz, height_ft, conductor_key="wire14", site="house",
     wire_wl = height_ft / lam_ft
     if kind == "invertedv":
         wire_wl -= antenna_advice.v_centroid_drop_wl(antenna_advice.DEFAULT_DROOP_DEG)
-    feed_r = antenna_advice.feed_r_at(kind, wire_wl, antenna_advice.DEFAULT_DROOP_DEG)
+    feed_r = antenna_advice.feed_r_at(kind, wire_wl, antenna_advice.DEFAULT_DROOP_DEG, mhz=mhz)
     z = patterns.feedpoint_z(kind, mhz, mhz, q=q, r=feed_r)
     span = patterns.usable_bandwidth(kind, mhz, q=q, r=feed_r)
 
@@ -482,6 +482,15 @@ def build(kind, mhz, height_ft, conductor_key="wire14", site="house",
                 + (", on both whips of the pair alike" if tune.get("pair") else "")
                 + f". {tune['note']}", st["body"]))
 
+    # The antenna as it goes up, labelled in the operator's own units - the
+    # tables say what to cut, this says where it goes (antennadraw).
+    def say(feet):
+        return f"{feet * 0.3048:.2f} m" if lead_metric else _feet_inches(feet)
+    drawing = antennadraw.sketch(kind, mhz, height_ft, say, dims=dims)
+    if drawing is not None:
+        flow.append(Spacer(1, 6))
+        flow.append(drawing)
+
     # --- the material -------------------------------------------------------
     flow.append(Paragraph("What it is made of", st["h"]))
     mat = [["Conductor", "Diameter", "Velocity factor", "Bandwidth vs wire"],
@@ -519,6 +528,36 @@ def build(kind, mhz, height_ft, conductor_key="wire14", site="house",
             f"arithmetic. A low antenna is not a broken one - it is a "
             f"different one, and the takeoff angle above says which.",
             st["body"]))
+
+    # Where that height sends it: the Lab's two views, from the same model.
+    plots = antennadraw.pattern_pair(kind, mhz, height_ft)
+    if plots is not None:
+        flow.append(KeepTogether([Paragraph("Where it sends the signal", st["h"]), plots]))
+
+    # Where that comes down, by day and by night: the sheet does not know the
+    # hour it will be used at, so it gives both, and the Army's table of the
+    # same thing beside the model's (manuals.TAKEOFF_DISTANCE).
+    feet = antennadraw.footprint_pair(kind, mhz, height_ft, unit=unit, lat=lat)
+    if feet is not None:
+        _, day, night = antennadraw.rings_for(kind, mhz, height_ft)
+        words = [Paragraph("Where it lands, by day and by night", st["h"]), feet]
+        row = manuals.takeoff_distance(day["takeoff_deg"])
+        if row:
+            def at(r):
+                if lead_metric:
+                    return f"{r['deg']}° comes down about {r['day_km']:,} km by day and {r['night_km']:,} km by night"
+                return f"{r['deg']}° about {r['day_mi']:,} miles by day and {r['night_mi']:,} by night"
+            c = row["cite"]
+            words.append(Paragraph(
+                f"The main lobe leaves at about {day['takeoff_deg']:.0f}°. The Army's table of take-off "
+                f"angle against distance puts " + "; ".join(at(r) for r in row["rows"]) +
+                f" ({c['book']}, {c['table'].split('.')[0]}, p. {c['page']}).", st["body"]))
+        words.append(Paragraph(
+            "Drawn for a typical noon and midnight: where the lobe comes down, past the skip that sky "
+            "leaves, or nothing where the layer does not turn this band back at that hour. The real sky "
+            "moves with the season and the sun's cycle - the Lab and the Band Plan's reach map read the "
+            "live critical frequency and say what it is doing now.", st["small"]))
+        flow.append(KeepTogether(words))
 
     # --- electrically -------------------------------------------------------
     flow.append(Paragraph("What the instrument should see", st["h"]))

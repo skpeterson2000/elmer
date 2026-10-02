@@ -73,7 +73,12 @@
       <input type="range" id="vn-feet" min="0" max="300" step="5" value="0"></div>
   </div>
 
-  <div id="vn-chart" class="mt"></div>
+  {#- The SWR chart and the Smith chart of the same sweep, side by side where
+      there is room and one above the other where there is not. -#}
+  <div class="mt" style="display:flex;flex-wrap:wrap;gap:1rem;align-items:flex-start">
+    <div id="vn-chart" style="flex:1 1 360px;min-width:0"></div>
+    <div id="vn-smith" style="flex:0 1 300px;min-width:240px"></div>
+  </div>
   <div id="vn-markers"></div>
   <div id="vn-read" class="small muted mt"></div>
 
@@ -82,6 +87,9 @@
     <button class="btn sm" id="vn-find">Look for a VNA</button>
     <select id="vn-port" class="mono" style="min-width:14rem"></select>
     <button class="btn sm" id="vn-id" disabled>Ask what it is</button>
+    {#- A V2's firmware, against the official releases ELMER knows, and the
+        vendor's own page asked on the press. Reads; never writes. -#}
+    <button class="btn sm ghost" id="vn-fw" hidden>Check its firmware</button>
     <button class="btn sm primary" id="vn-measure" disabled>Sweep it</button>
     <button class="btn sm ghost" id="vn-export" hidden>Export .s1p</button>
   </div>
@@ -506,6 +514,24 @@
       <div class="field"><label>Current on transmit (amps)</label><input id="bd-amps" value="20"></div>
       <div class="field"><label>&nbsp;</label><button class="btn sm primary" id="bd-go">Work it out</button></div>
     </div><div id="bd-out" class="small mt"></div></div>',
+  "The terminator - a resistor bank for a terminated antenna": '<div class="bench-calc"><div class="grid cols-4">
+      <div class="field"><label>Terminator (ohms)</label><input id="bt-ohms" value="600"></div>
+      <div class="field"><label>Transmitter (watts)</label><input id="bt-watts" value="100"></div>
+      <div class="field"><label>Share it takes (%)</label><input id="bt-share" value="50"></div>
+      <div class="field"><label>Mode</label><select id="bt-duty">
+        <option value="1" selected>Full carrier - FT8, RTTY, FM, AM, tune</option>
+        <option value="0.5">CW, or SSB with compression</option>
+        <option value="0.3">SSB voice, no compression</option></select></div>
+      <div class="field"><label>Each resistor (watts)</label><select id="bt-each" class="mono">
+        <option>0.25</option><option>0.5</option><option>1</option><option selected>2</option><option>3</option>
+        <option>5</option><option>10</option><option>25</option><option>50</option><option>100</option></select></div>
+      <div class="field"><label>Values</label><select id="bt-series">
+        <option value="E24" selected>Any standard value (E24)</option>
+        <option value="E12">The common ones (E12)</option>
+        <option value="have">Only the values I have</option></select></div>
+      <div class="field"><label>Values I have (ohms)</label><input id="bt-have" placeholder="e.g. 106, 470, 1k"></div>
+      <div class="field"><label>Margin (times the heat)</label><input id="bt-margin" value="1.5"></div>
+    </div><div id="bt-out" class="small mt"></div></div>',
   "The battery": '<div class="bench-calc"><div class="grid cols-4">
       <div class="field"><label>Battery (amp-hours)</label><input id="bb-ah" value="20"></div>
       <div class="field"><label>Receive draw (amps)</label><input id="bb-rx" value="1"></div>

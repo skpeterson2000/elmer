@@ -212,6 +212,60 @@ BENCHES = [
                 "exam": ["T7C05", "T7C07", "T7C09", "T7C10", "T7C11", "T9B02", "T9B03"],
             },
             {
+                "title": "The terminator - a resistor bank for a terminated antenna",
+                "what": "A terminated antenna - the TEFV, the terminated sloper, the rhombic - "
+                        "ends in a resistor that soaks up whatever the wire has not radiated, and "
+                        "that resistor is a real load: the Marines' Antenna Handbook sizes it for "
+                        "half the transmitter's output. A single non-inductive resistor of that "
+                        "value and wattage is hard to come by, so it is usually built as a bank of "
+                        "small ones - the handbook's own is six in series. The calculator below "
+                        "finds the bank.",
+                "how": "Every resistor in the bank the same value and the same rating, wired as "
+                       "strings in series and the strings in parallel - so each one carries the "
+                       "same share of the heat. Mixed values share it unequally, and the smallest "
+                       "cooks first. Use non-inductive parts: metal oxide film, carbon "
+                       "composition, carbon film, or thick-film power resistors on a heat sink. "
+                       "Never wirewound, whatever the wattage - a wirewound resistor is a coil, "
+                       "and at HF its reactance can be larger than its resistance. Build it on a "
+                       "board with air around every part, in a box that sheds rain but breathes.",
+                "reads": "Before it goes up, the meter: the bank's DC resistance should read "
+                         "within a few percent of the target. Then, if there is a VNA or an "
+                         "analyser, sweep it across the bands: a good bank holds near its "
+                         "resistance with little reactance from the bottom of HF to the top. A "
+                         "reactance that climbs steadily with frequency is inductance - a "
+                         "wirewound part, or long leads. In service, a terminated antenna's SWR "
+                         "should be low and nearly flat everywhere it is long enough for; a "
+                         "terminator that has opened turns it back into an ordinary long wire, "
+                         "and the SWR swings with frequency again.",
+                "why": "The resistor is the antenna's whole trick - it is what makes the wire "
+                       "fire one way and match on every band - and it is also the part that "
+                       "fails. It is rated in free air at room temperature, and it lives "
+                       "outdoors in a box in the sun, so it is built with room to spare. FT8 "
+                       "and the other digital modes are full carrier for as long as they "
+                       "transmit, and a small resistor heats in seconds: count them as full "
+                       "carrier, not by their duty cycle.",
+                "aside": {
+                    "title": "In oil",
+                    "text": "A bank can be sunk in oil, as the old paint-can dummy loads were. Oil "
+                            "carries the heat to the container's walls far better than still air "
+                            "and adds a great deal of thermal mass, so a burst of SSB or CW warms "
+                            "it slowly; but over a long FT8 session the oil itself gets hot, and "
+                            "what the bank can take for hours is set by how much surface the "
+                            "container has. Use food-grade mineral oil or new transformer oil - "
+                            "never motor oil, which has additives, or cooking oil, which goes "
+                            "rancid, and never old surplus transformer oil of unknown origin, "
+                            "which can contain PCBs. Seal it against rain with air above the oil "
+                            "for expansion: water in oil ruins its insulation and settles where the "
+                            "parts are. A metal can adds capacitance between the parts and the can, "
+                            "which pulls the impedance down as the frequency rises, so sweep the "
+                            "bank in its oil, in its can, before it goes up. Metal oxide and carbon "
+                            "composition are the usual parts for an oil load. Keep the bank the "
+                            "calculator gives - it assumes free air - and count the oil as margin, "
+                            "not as a reason to use fewer parts.",
+                },
+                "exam": ["T7C03", "G6A06", "E9C06", "E9H06", "E9H07"],
+            },
+            {
                 "title": "The battery",
                 "what": "Amp-hours: how many amps for how many hours. A 20 Ah battery gives "
                         "two amps for ten hours or ten for two - less than that in the cold, "
@@ -467,6 +521,100 @@ def analyser_reading(r, x, z0=50.0):
     return {"swr": round(swr, 2), "magnitude": round(mag, 1), "phase": round(phase, 1), "cut": cut, "where": where,
             "match": "a good match" if swr <= 1.5 else "usable - a tuner will take it" if swr <= 3 else
                      "a poor match - look for the fault before you cut anything"}
+
+
+# The standard resistor values, one decade of each series (IEC 60063).
+E12 = (10, 12, 15, 18, 22, 27, 33, 39, 47, 56, 68, 82)
+E24 = (10, 11, 12, 13, 15, 16, 18, 20, 22, 24, 27, 30, 33, 36, 39, 43, 47, 51, 56, 62, 68, 75, 82, 91)
+# A common working-voltage limit for small film and composition resistors;
+# above it, the datasheet has to be read. Not a law - some are rated higher.
+RESISTOR_VOLTS = 350.0
+
+
+def series_values(series="E24"):
+    """Every value of a standard series from 1 ohm to 1 megohm."""
+    decade = E12 if series == "E12" else E24
+    return [round(v * 10 ** k / 10, 6) for k in range(0, 6) for v in decade]
+
+
+def _banks(target_ohms, tx_watts, share, dissipate, each_watts, pool, tolerance, fewest, above, most):
+    """Every s-by-p bank of more than `above` and at most `most` parts that
+    carries the heat and lands within tolerance of the target."""
+    import math
+    out = []
+    for s in range(1, most + 1):
+        for p in range(1, most // s + 1):
+            parts = s * p
+            if parts < fewest or parts <= above:
+                continue
+            want = target_ohms * p / s
+            value = min(pool, key=lambda v: abs(math.log(v / want)))
+            total = value * s / p
+            error = total / target_ohms - 1
+            if abs(error) > tolerance + 1e-12:
+                continue
+            # The voltage on one part, at the peak of a full carrier: the
+            # terminator's whole share of the output across the bank, split
+            # down each string.
+            volts_peak = math.sqrt(tx_watts * float(share) * total) * math.sqrt(2) / s
+            out.append({"series": s, "parallel": p, "parts": parts, "value": value, "total": round(total, 2),
+                        "error": round(error, 4), "watts_each": round(dissipate / parts, 3),
+                        "rating": round(parts * each_watts, 1), "volts_peak_each": round(volts_peak, 1),
+                        "volts_ok": volts_peak <= RESISTOR_VOLTS})
+    return out
+
+
+def termination_bank(target_ohms=600.0, tx_watts=100.0, share=0.5, duty=1.0, margin=1.5,
+                     each_watts=2.0, values=None, tolerance=0.10, max_parts=400, best=4):
+    """The resistor banks that make a terminator: identical resistors, `s` in
+    series in each string and `p` strings in parallel, so each carries an
+    equal share of the heat.
+
+    The terminator dissipates `share` of the transmitter's output (the
+    handbook sizes it for half), times `duty` for the mode's average, and
+    the bank is rated `margin` times that. Returns the plan and up to
+    `best` banks within `tolerance` of the target, fewest parts first, or
+    None when the numbers cannot make one. Ten percent is close enough: a
+    terminator's value is right where the SWR varies least across the band,
+    and that minimum is broad."""
+    import math
+    target_ohms, tx_watts, each_watts = float(target_ohms), float(tx_watts), float(each_watts)
+    if target_ohms <= 0 or tx_watts < 0 or each_watts <= 0:
+        return None
+    dissipate = tx_watts * float(share) * float(duty)
+    rated = dissipate * float(margin)
+    fewest = max(1, int(math.ceil(rated / each_watts - 1e-9)))
+    pool = sorted(set(float(v) for v in (values or series_values()) if float(v) > 0))
+    if not pool:
+        return None
+    # Enough parts for the heat, and not many more: past a quarter over the
+    # fewest, a bank is only being bought for a closer value it does not need.
+    # Only when the values to hand cannot get there - six of the handbook's
+    # 106 ohm resistors, say - does the search reach further.
+    most = min(max_parts, max(fewest + 3, int(math.ceil(fewest * 1.25))))
+    cands, looked = [], 0
+    while not cands and looked < max_parts:
+        cands = _banks(target_ohms, tx_watts, share, dissipate, each_watts, pool, tolerance, fewest, looked, most)
+        looked, most = most, min(max_parts, most * 2)
+    if not cands:
+        return {"dissipate": round(dissipate, 2), "rated": round(rated, 2), "fewest": fewest, "banks": []}
+
+    def rank(b):
+        # Within the voltage a small part takes; within 2% of the target
+        # counts as on it; a grid not too far from square - a long chain is
+        # fine to build but a wide fan of parallel parts puts the whole
+        # voltage across each; then fewer parts.
+        lopsided = max(b["series"], b["parallel"]) / min(b["series"], b["parallel"]) > 8
+        return (not b["volts_ok"], round(abs(b["error"]) / 0.02), lopsided, b["parts"])
+    least = min(b["parts"] for b in cands)
+    picked = [min((b for b in cands if b["parts"] == least), key=rank)]
+    for b in sorted(cands, key=rank):
+        if len(picked) >= best:
+            break
+        if all((b["series"], b["parallel"]) != (q["series"], q["parallel"]) for q in picked):
+            picked.append(b)
+    picked.sort(key=lambda b: (b["parts"], abs(b["error"])))
+    return {"dissipate": round(dissipate, 2), "rated": round(rated, 2), "fewest": fewest, "banks": picked}
 
 
 def for_page(page):

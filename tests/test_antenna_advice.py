@@ -415,10 +415,23 @@ def main():
     check("the high point near 0.35 is about 98", round(r(0.35)), 98)
     check("back through 73 at half a wave", abs(r(0.5) - 73) < 5, True)
     check("and it settles toward 73", abs(r(1.0) - 73) < 3, True)
+    # Over real ground it does not fall toward nothing near the ground - the
+    # challenge that found this: a wire on average soil 0.03 wave up reads
+    # tens of ohms, not two, and a perfect mirror is the only ground under
+    # which the textbook's curve holds.
+    check("over average ground, near the ground it levels off well above zero",
+          (round(r(0.03)), 20 <= r(0.03, mhz=7.15) <= 40), (2, True))
+    check("  and its swing is damped: the 98 ohm peak is lower",
+          r(0.35, mhz=7.15) < r(0.35) - 5, True)
+    check("  converging on the textbook half a wave up", abs(r(0.5, mhz=7.15) - r(0.5)) < 3, True)
     marks = A.matching_heights(7.1, 35)
     kinds = [m["what"] for m in marks]
     check("the first landmark is the 50 ohm match", kinds[0], "match")
-    check("  at about 23 ft on 40 m", marks[0]["ft"] in (22, 23), True)
+    # Over average ground, as the Lab's curve is drawn: the image reflects
+    # only part of the wave, so the resistance climbs from a floor rather
+    # than from nothing and reaches 50 sooner - about 17 ft on 40 m, where
+    # the perfect-ground textbook says 23.
+    check("  at about 17 ft on 40 m over average ground", marks[0]["ft"] in (16, 17, 18), True)
     check("  which a 35 ft garden reaches", marks[0]["reachable"], True)
     check("  and the 98 ohm high point at 46 ft it does not",
           next(m for m in marks if m["what"] == "peak")["reachable"], False)
@@ -430,7 +443,7 @@ def main():
           (round(A.mismatch_loss_db(1.5), 2), round(A.mismatch_loss_db(2.0), 2)), (0.18, 0.51))
     why = A.match_versus_height(10.136, 49)
     check("the advice says why the height beats the match, in numbers",
-          all(w in why for w in ("16 ft", "49 ft", "dB", "straight up", "30 degrees")), True)
+          all(w in why for w in ("12 ft", "49 ft", "dB", "straight up", "30 degrees")), True)
     check("  and that receiving goes the same way", "receives exactly the way it transmits" in why, True)
     check("  which the dipole advice carries", any("Why not the" in w for w in A.recommend(10.136, use="dx")["why"]), True)
     curve = A.height_curve(10.136)

@@ -81,13 +81,20 @@ def main():
     d = c.get(f"/api/pattern?type=quarter&mhz={mhz}&height=0", environ_base=LOCAL).get_json() or {}
     check("a quarter-wave vertical's resistance is its type's", (d.get("feed_r_from"), d.get("feed_r")), ("type", 36.0))
 
-    print("\n-- a low wire is narrower --")
+    print("\n-- the 2:1 window follows the feed, over real ground --")
     low = c.get(f"/api/pattern?type=dipole&mhz={mhz}&height=14", environ_base=LOCAL).get_json() or {}
     high = c.get(f"/api/pattern?type=dipole&mhz={mhz}&height=45", environ_base=LOCAL).get_json() or {}
     print(f"     14 ft: {low.get('feed_r')} ohms, {low['bandwidth']['khz']} kHz under 2:1; "
           f"45 ft: {high.get('feed_r')} ohms, {high['bandwidth']['khz']} kHz")
     check("the dipole at 14 ft has a lower resistance than at 45", low["feed_r"] < high["feed_r"], True)
-    check("  and a narrower 2:1 bandwidth", low["bandwidth"]["khz"] < high["bandwidth"]["khz"], True)
+    # Over perfect ground the 14 ft wire read 22 ohms and its 2:1 window was
+    # narrow - which this test once held up as "a low wire is narrower". Over
+    # average ground it reads about 43, near 50, and the window is wider: the
+    # window follows how near the feed is to 50 ohms, and a wide one on a low
+    # wire is a match (or, on real soil, loss), not a better antenna.
+    check("  over average ground the 14 ft wire reads nearer 50 ohms than at 45",
+          abs(low["feed_r"] - 50) < abs(high["feed_r"] - 50), True)
+    check("  so its 2:1 window is the wider one", low["bandwidth"]["khz"] > high["bandwidth"]["khz"], True)
 
     print("\n-- the build sheet reads the same resistance --")
     src = (ROOT / "elmer" / "antennapdf.py").read_text(encoding="utf-8")

@@ -42,7 +42,8 @@ def main():
 
     print("\n-- what is here is reported with its version --")
     here = diagnostics.package_lines()
-    check("one line for each of flask, numpy and scipy", [l.split()[0] for l in here], ["flask", "numpy", "scipy"])
+    check("one line for each of flask, numpy, scipy and pyserial", [l.split()[0] for l in here],
+          ["flask", "numpy", "scipy", "pyserial"])
     check("  none of them says missing on this machine", any("NOT INSTALLED" in l for l in here), False)
 
     real = host.WINDOWS

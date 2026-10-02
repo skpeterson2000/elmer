@@ -67,12 +67,14 @@ def main():
     print("\n-- so the table is the V's, not a dipole's --")
     flat = A.matching_heights(3.535, None, 0)
     vee = A.matching_heights(3.535, None, 35)
-    check("the flat wire matches 50 ohms at 45 ft",
-          next(r["ft"] for r in flat if r["what"] == "match"), 45)
+    # Over average ground, as the Lab's curve is drawn: the flat wire's
+    # match on 80 m is about 36 ft (the perfect-ground textbook said 45).
+    flat_match = next(r["ft"] for r in flat if r["what"] == "match")
+    check("the flat wire matches 50 ohms at about 36 ft over average ground", flat_match, 36)
     check("  the V wants a higher apex for the same thing",
-          next(r["ft"] for r in vee if r["what"] == "match") > 45, True)
-    check("  because its wire is where the flat one's was",
-          round(next(r["wire_ft"] for r in vee if r["what"] == "match")), 55)
+          next(r["ft"] for r in vee if r["what"] == "match") > flat_match, True)
+    check("  its wire hanging about 48 ft up, below that apex",
+          round(next(r["wire_ft"] for r in vee if r["what"] == "match")), 48)
     check("  the flat wire's 73 ohm landmark exists",
           any("73 ohms" in r["note"] for r in flat), True)
     check("  and the V has no such height, being 56 ohms at most",

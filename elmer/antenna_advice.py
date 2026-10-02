@@ -927,7 +927,8 @@ TYPES = {
             "what it gets. That is 3 dB spent to buy a flat match across "
             "two decades of frequency and a pattern with no back to it. Use "
             "600 ohms, non-inductive - a wirewound resistor is a coil and "
-            "undoes the whole idea.",
+            "undoes the whole idea. The meter bench on the Tools page works "
+            "out a bank of small resistors for your power.",
             "The handbook says to make the terminator from \"100-watt, "
             "106-ohm\" resistors without saying how many. Six in series is "
             "636 ohms, which is what it must mean; it is not one resistor.",
@@ -2265,6 +2266,40 @@ def _ci(x):
     return _EULER_GAMMA + math.log(x) + total
 
 FREE_SPACE_OHMS = 73.13
+# The half-wave's own reactance, with its resistance its self-impedance in
+# free space (Kraus): the real-ground image below mixes the two.
+FREE_SPACE_X = 42.5
+
+
+def _si(x):
+    """The sine integral Si(x), in plain Python, as _ci is:
+    Si(x) = sum_{k>=0} (-1)^k x^(2k+1) / ((2k+1) (2k+1)!)."""
+    if x == 0:
+        return 0.0
+    if x > 40:
+        f = (1 / x) * (1 - 2 / x**2 + 24 / x**4 - 720 / x**6)
+        g = (1 / x**2) * (1 - 6 / x**2 + 120 / x**4 - 5040 / x**6)
+        return math.pi / 2 - f * math.cos(x) - g * math.sin(x)
+    total, term, k = x, x, 0
+    x2 = x * x
+    while True:
+        k += 1
+        term *= -x2 / ((2 * k) * (2 * k + 1))
+        piece = term / (2 * k + 1)
+        total += piece
+        if k > 4 and abs(piece) < 1e-17 * max(1.0, abs(total)):
+            break
+        if k > 400:                                   # pragma: no cover
+            break
+    return total
+
+
+def _mutual_x(d_wavelengths, half_length=0.5):
+    """Mutual reactance of side-by-side thin half-wave dipoles, ohms (Kraus)."""
+    k = 2.0 * math.pi
+    r = math.hypot(d_wavelengths, half_length)
+    return -30.0 * (2.0 * _si(k * d_wavelengths)
+                    - _si(k * (r + half_length)) - _si(k * (r - half_length)))
 
 
 def _mutual_r(d_wavelengths, half_length=0.5):
@@ -2317,13 +2352,25 @@ def v_centroid_drop_wl(droop_deg):
     return V_CENTROID * V_LEG_WL * math.sin(math.radians(max(0.0, min(90.0, float(droop_deg)))))
 
 
-def feedpoint_resistance(height_wavelengths, droop_deg=0.0):
+def feedpoint_resistance(height_wavelengths, droop_deg=0.0, mhz=None, ground="average"):
     """A half-wave's feedpoint resistance at this height, ohms.
 
     `height_wavelengths` is the height of the wire itself - for a V, the
     height it behaves as though it hangs at, which is not its apex; see
-    v_centroid_drop_wl(). Over perfect ground. None if the height is too
-    low to mean anything.
+    v_centroid_drop_wl(). None if the height is too low to mean anything.
+
+    With no `mhz` it is over perfect ground: the wire's own 73 ohms less its
+    coupling to a perfect mirror image of itself, the textbook curve - which
+    falls toward nothing as the wire comes down, because a perfect mirror
+    cancels it. No yard is a perfect mirror. With `mhz`, the image is
+    weighted by the ground's own reflection at that frequency
+    (patterns.fresnel, straight down): weaker and turned in phase, so it
+    cannot cancel the wire, and the resistance levels off instead of
+    falling to zero. Z = Z11 + Gamma Z12(2h), the reflection-coefficient
+    image; Gamma = -1 gives the textbook. What it leaves out is the soil's
+    own loss in the near field, which below about a tenth of a wave adds
+    more resistance still - so near the ground this is a floor, not the
+    figure, and the curve says so.
 
     The droop lowers the free-space figure, and the ground's own term is
     scaled with it: the image couples to a drooping wire more weakly than
@@ -2332,10 +2379,17 @@ def feedpoint_resistance(height_wavelengths, droop_deg=0.0):
     if height_wavelengths <= 0.02:
         return None
     base = v_free_space_ohms(droop_deg) if droop_deg else FREE_SPACE_OHMS
-    return base - _mutual_r(2.0 * height_wavelengths) * (base / FREE_SPACE_OHMS)
+    scale = base / FREE_SPACE_OHMS
+    d = 2.0 * height_wavelengths
+    if not mhz or ground == "perfect":
+        return base - _mutual_r(d) * scale
+    from . import patterns
+    gamma, _ = patterns.fresnel(math.pi / 2.0, float(mhz), ground)
+    z12 = complex(_mutual_r(d), _mutual_x(d)) * scale
+    return base + (gamma * z12).real
 
 
-def feed_r_at(kind, wire_height_wl, droop_deg=0.0):
+def feed_r_at(kind, wire_height_wl, droop_deg=0.0, mhz=None, ground="average"):
     """The feed resistance of this antenna at this height, where the heights
     table knows it: a half-wave dipole or inverted V, over perfect ground.
     None for anything else, and for a wire too low to mean anything.
@@ -2346,7 +2400,8 @@ def feed_r_at(kind, wire_height_wl, droop_deg=0.0):
     resistance the heights table prints for the same height."""
     if kind not in ("dipole", "invertedv"):
         return None
-    return feedpoint_resistance(wire_height_wl, droop_deg if kind == "invertedv" else 0.0)
+    return feedpoint_resistance(wire_height_wl, droop_deg if kind == "invertedv" else 0.0,
+                                mhz=mhz, ground=ground)
 
 
 def _swr_into_50(r):
@@ -2355,7 +2410,7 @@ def _swr_into_50(r):
 
 # Where the curve does something worth knowing, in wavelengths. Found once by
 # scanning the curve rather than typed in, so they cannot drift from it.
-def _landmarks(droop_deg=0.0):
+def _landmarks(droop_deg=0.0, mhz=None, ground="average"):
     """Where the curve does something, in wavelengths of *wire* height.
 
     A V's droop moves all of them: the free-space figure it returns to is
@@ -2364,7 +2419,9 @@ def _landmarks(droop_deg=0.0):
     than taken from the flat one.
     """
     hs = [i / 1000.0 for i in range(40, 1001)]
-    rs = [feedpoint_resistance(h, droop_deg) for h in hs]
+    # over the real ground when the band is known, as the curve is drawn;
+    # the textbook's perfect ground when it is not
+    rs = [feedpoint_resistance(h, droop_deg, mhz=mhz, ground=ground) for h in hs]
     natural = v_free_space_ohms(droop_deg) if droop_deg else FREE_SPACE_OHMS
     marks = []
     for i in range(1, len(hs) - 1):
@@ -2393,10 +2450,14 @@ _LANDMARKS = _landmarks()
 _LANDMARK_CACHE = {0: _LANDMARKS}
 
 
-def landmarks_for(droop_deg=0.0):
-    key = int(round(float(droop_deg or 0)))
+def landmarks_for(droop_deg=0.0, mhz=None, ground="average"):
+    deg = int(round(float(droop_deg or 0)))
+    key = deg if not mhz else (deg, round(float(mhz), 2), ground)
     if key not in _LANDMARK_CACHE:
-        _LANDMARK_CACHE[key] = _landmarks(key)
+        if len(_LANDMARK_CACHE) > 64:
+            _LANDMARK_CACHE.clear()
+            _LANDMARK_CACHE[0] = _LANDMARKS
+        _LANDMARK_CACHE[key] = _landmarks(deg, mhz, ground) if mhz else _landmarks(deg)
     return _LANDMARK_CACHE[key]
 
 
@@ -2509,7 +2570,7 @@ def mismatch_loss_db(swr):
     return -10.0 * math.log10(1.0 - rho * rho)
 
 
-def height_curve(mhz, step=0.01, top=1.0, top_ft=None, droop_deg=0.0):
+def height_curve(mhz, step=0.01, top=1.0, top_ft=None, droop_deg=0.0, ground="average"):
     """The whole story against height, for a graph: the feedpoint
     resistance, the SWR that means into 50 ohm coax, and where the main
     lobe points, every hundredth of a wave up.
@@ -2556,7 +2617,8 @@ def height_curve(mhz, step=0.01, top=1.0, top_ft=None, droop_deg=0.0):
         heights.append(top)
     out = []
     for h in heights:
-        r = feedpoint_resistance(h, droop_deg)
+        r = feedpoint_resistance(h, droop_deg, mhz=mhz, ground=ground)
+        textbook = feedpoint_resistance(h, droop_deg)
         if r is not None:
             # Plotted against the apex, because that is the height on the
             # slider and the one somebody can measure; the resistance and
@@ -2565,6 +2627,7 @@ def height_curve(mhz, step=0.01, top=1.0, top_ft=None, droop_deg=0.0):
                         "ft": round((h + drop) * lam, 1),
                         "wire_ft": round(h * lam, 1),
                         "ohms": round(r, 1), "swr": round(_swr_into_50(r), 2),
+                        "ohms_perfect": round(textbook, 1),
                         "takeoff": round(takeoff_deg(h * lam, mhz), 1)})
     return out
 
@@ -2576,11 +2639,11 @@ def match_versus_height(mhz, wanted_ft, unit=None):
     antenna receives exactly the way it transmits, so the same height that
     puts the signal out low brings the far signals in."""
     lam = wavelength_ft(mhz)
-    match = next((m for m in _LANDMARKS if m[0] == "match"), None)
+    match = next((m for m in landmarks_for(0, mhz) if m[0] == "match"), None)
     if match is None or wanted_ft <= 0:
         return None
     match_ft = round(match[1] * lam)
-    r_wanted = feedpoint_resistance(wanted_ft / lam)
+    r_wanted = feedpoint_resistance(wanted_ft / lam, mhz=mhz)
     if r_wanted is None:
         return None
     swr_wanted = _swr_into_50(r_wanted)
@@ -2598,7 +2661,7 @@ def match_versus_height(mhz, wanted_ft, unit=None):
             f"height; let the SWR be {swr_wanted:.1f}.")
 
 
-def matching_heights(mhz, reach_ft=None, droop_deg=0.0):
+def matching_heights(mhz, reach_ft=None, droop_deg=0.0, ground="average"):
     """The heights worth knowing about for a horizontal wire on this band.
 
     Each with the feedpoint resistance there, the SWR that means into 50 ohm
@@ -2616,7 +2679,7 @@ def matching_heights(mhz, reach_ft=None, droop_deg=0.0):
     lam = wavelength_ft(mhz)
     drop = v_centroid_drop_wl(droop_deg) if droop_deg else 0.0
     out = []
-    for what, h, r, note in landmarks_for(droop_deg):
+    for what, h, r, note in landmarks_for(droop_deg, mhz, ground):
         # Two heights, and the difference between them is the point: the
         # apex is what somebody hauls up and can measure from the ground,
         # and the wire height is where the antenna behaves as though it

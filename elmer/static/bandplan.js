@@ -1092,15 +1092,18 @@ function reliefAt(r, lat, lon, out) {
    full strength, so at nothing the map is the ground with the forecast
    drawn on it in lines. The field under it is worked out once a view and
    kept, so moving the slider only blends again - instant, even on a Pi. */
-const CLOUD_DIM = [206, 212, 218];
 let REACH_RGB = [74, 222, 128];
 function smooth01(e0, e1, x) { const t = Math.max(0, Math.min(1, (x - e0) / (e1 - e0))); return t * t * (3 - 2 * t); }
 function cloudAlpha(v) { return Math.pow(smooth01(5, 100, v), 0.8) * 0.92; }
+/* The overlay is the band's own color, as the band is everywhere else in
+   ELMER - 40 m yellow, 80 m blue - laid over the relief the way cloud lies
+   over the ground on a weather map: thin where the band is weak, dense where
+   it is strong, paling toward white only at the very best, as the plain
+   map's ramp does. "Cloud" is how it sits on the map, not its color. */
 function cloudColor(v, lit, out) {
-  const wash = smooth01(55, 100, v) * 0.35;
+  const pale = smooth01(70, 100, v) * 0.6;
   for (let i = 0; i < 3; i++) {
-    const white = CLOUD_DIM[i] + (255 - CLOUD_DIM[i]) * v / 100;
-    out[i] = (white * (1 - wash) + REACH_RGB[i] * wash) * lit;
+    out[i] = (REACH_RGB[i] + (255 - REACH_RGB[i]) * pale) * lit;
   }
 }
 /* The field kept for one view: the score, the night's shade and the shaded
@@ -1138,11 +1141,12 @@ function bpCloudPaint(px, f, coarse) {
       px[o + 3] = 255;
     }
   }
-  /* The isolines, two pixels wide in the band's color: one dark pixel is
-     lost on a busy ground. Not while the hand is moving. */
+  /* The isolines, two pixels wide in a dark shade of the band's color, so
+     they show on the band-colored overlay and on the ground alike: one dark
+     pixel is lost on a busy ground. Not while the hand is moving. */
   if (coarse) return;
   const band = v => { let b = 0; for (const c of REACH_CONTOURS) if (v >= c) b++; return b; };
-  const ink = REACH_RGB.map(c => c * 0.85);
+  const ink = REACH_RGB.map(c => c * 0.4);
   const mark = j => { const o = j * 4; px[o] = ink[0]; px[o + 1] = ink[1]; px[o + 2] = ink[2]; };
   for (let y = 0; y < H - 1; y++) {
     for (let x = 0; x < W - 1; x++) {

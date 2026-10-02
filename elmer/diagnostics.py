@@ -1337,7 +1337,10 @@ def check_server(port):
 
 
 # The Python packages the self-check reports, in the order it reports them.
-PACKAGES = ("flask", "numpy", "scipy")
+PACKAGES = ("flask", "numpy", "scipy", "serial")
+# What a package is called where somebody would look for it, when its import
+# name is not that: pyserial imports as "serial".
+PACKAGE_NAMES = {"serial": "pyserial"}
 
 
 def install_step():
@@ -1358,9 +1361,10 @@ def package_lines(importer=__import__):
     for name in PACKAGES:
         try:
             version = getattr(importer(name), "__version__", "present")
-            lines.append(f"  {name:<11} {version}")
+            lines.append(f"  {PACKAGE_NAMES.get(name, name):<11} {version}")
         except ImportError:
-            lines.append(f"  {name:<11} NOT INSTALLED - run {install_step()} and it puts it back")
+            lines.append(f"  {PACKAGE_NAMES.get(name, name):<11} NOT INSTALLED - run {install_step()} "
+                         f"and it puts it back")
     return lines
 
 

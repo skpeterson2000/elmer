@@ -35,6 +35,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import _isolate  # noqa: E402,F401  - before anything from elmer
 from elmer import patterns  # noqa: E402
 from elmer.app import app  # noqa: E402
+from elmer import propagation  # noqa: E402
 
 FAILS = []
 LOCAL = {"REMOTE_ADDR": "127.0.0.1"}
@@ -106,6 +107,10 @@ check("  and the perfect-ground answer was the geometric maximum",
       ideal["takeoff_deg"], 0.0)
 
 print("\nand the page ships one answer, not two")
+# A daytime sky, pinned: the page reads tonight's, and on an evening when
+# 20 m is shut there is no takeoff to compare and the check fails for the
+# hour, not for the arithmetic. 9 MHz at 300 km keeps the band open.
+propagation.snapshot = lambda **kw: {"ok": True, "fof2": 9.0, "hmf2": 300.0}
 client = app.test_client()
 for kind, mhz, height in (("whip", 14.25, 9), ("quarter", 14.25, 20),
                           ("dipole", 14.25, 35), ("invertedv", 7.15, 35)):

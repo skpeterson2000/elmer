@@ -2,7 +2,7 @@
 #
 # On Debian and Raspberry Pi OS these are better installed with apt, because the
 # system Python is externally managed and pip will refuse it:
-#     sudo apt install python3-flask python3-pil python3-reportlab python3-numpy python3-scipy
+#     sudo apt install python3-flask python3-pil python3-reportlab python3-numpy python3-scipy python3-serial
 # install.sh does that for you, and falls back to a virtual environment when apt
 # is not available.
 #
@@ -14,3 +14,7 @@ Pillow>=9.0
 reportlab>=3.6
 numpy>=1.24
 scipy>=1.10
+# pyserial talks to a NanoVNA over USB - the original's shell and the V2's
+# (S-A-A-2's) binary protocol alike. Small and pure Python; a default since
+# 2026-10-01, so a VNA works on a unit as it comes. Bookworm ships 3.5.
+pyserial>=3.4
