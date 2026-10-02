@@ -119,6 +119,8 @@ data/sweep.json
 data/vna_v2_cal.json
 # Activity this operator has put off (activity.py) - theirs, not the repo's.
 data/deferred.json
+# Where this unit listens for WSJT-X (wsjtx.py) - set at the unit, for its network.
+data/wsjtx.json
 
 # The forecast's own ledger: what this unit said, what the sondes then read,
 # what it learned from the difference. Measured on this unit, about this sky.

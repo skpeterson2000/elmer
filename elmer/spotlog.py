@@ -17,6 +17,10 @@ spot says nothing about where in a sixty-mile beach it came from.
 
 The feed is public and one request of about thirty kilobytes; the sample
 is taken at the same cadence the space weather is.
+
+The latest batch is also kept whole, in memory, for the reach map: who is on
+the air from which park right now, on which band. That is the one place a
+spot's position is used, and it is the park's, as the feed gives it.
 """
 import json
 import logging
@@ -38,6 +42,7 @@ TIMEOUT = 20
 EVERY_MINUTES = 20
 REMEMBER_IDS = 4000            # spots already counted, so a resample is not a recount
 KEEP_HINTS = 12                # comments per park worth keeping
+LIVE_MAX_AGE_S = 90 * 60       # a batch this old is not "on the air now", whatever it says
 
 # A comment that says something about the station rather than the QSO.
 HINT = re.compile(r"\b(efhw|end.?fed|dipole|vertical|whip|yagi|beam|loop|wire|random wire|hamstick|"
@@ -113,21 +118,88 @@ def fold(data, spots, when=None):
     return new
 
 
+_live_lock = threading.Lock()
+_live = {"as_of": None, "taken": None, "spots": []}
+_failing = [False]             # whether the last sample failed, so a failure is logged once
+
+
+def _repair(text):
+    """A park name the feed sends as UTF-8 read as Windows-1252 - "æ±Ÿè‹"
+    for a Chinese name - read back the right way, when that is what it is."""
+    try:
+        return text.encode("cp1252").decode("utf-8")
+    except (UnicodeEncodeError, UnicodeDecodeError, AttributeError):
+        return text
+
+
+def live_batch(spots, now=None):
+    """The feed's spots as the map wants them: placed, banded, and with the
+    moment each one expires. A spot with no position, or marked invalid, is
+    left out."""
+    now = now or time.time()
+    out = []
+    for spot in spots or []:
+        try:
+            lat, lon = float(spot.get("latitude")), float(spot.get("longitude"))
+        except (TypeError, ValueError):
+            continue
+        if spot.get("invalid") or not (-90 <= lat <= 90 and -180 <= lon <= 180):
+            continue
+        try:
+            khz = float(spot.get("frequency"))
+        except (TypeError, ValueError):
+            khz = None
+        try:
+            expire = max(0, int(spot.get("expire") or 0))
+        except (TypeError, ValueError):
+            expire = 0
+        out.append({"call": (spot.get("activator") or "").upper(), "ref": (spot.get("reference") or "").upper(),
+                    "name": _repair(spot.get("name") or ""), "lat": lat, "lon": lon,
+                    "mhz": round(khz / 1000, 4) if khz else None, "band": _band(khz) if khz else None,
+                    "mode": (spot.get("mode") or "").upper(), "grid": spot.get("grid6") or spot.get("grid4") or "",
+                    "spotted": (str(spot.get("spotTime") or "") + "Z") if spot.get("spotTime") else None,
+                    "expires": now + expire if expire else None,
+                    "comment": (spot.get("comments") or "")[:120]})
+    return out
+
+
+def live(now=None):
+    """The activators on the air now, from the latest sample: spots past
+    their expiry are dropped, and a batch older than LIVE_MAX_AGE_S is
+    none at all."""
+    now = now or time.time()
+    with _live_lock:
+        taken, spots, as_of = _live["taken"], list(_live["spots"]), _live["as_of"]
+    if not taken or now - taken > LIVE_MAX_AGE_S:
+        return {"as_of": as_of, "spots": [], "stale": bool(taken)}
+    return {"as_of": as_of, "stale": False,
+            "spots": [s for s in spots if not s["expires"] or s["expires"] > now]}
+
+
 def sample():
-    """One look at the feed, folded in and saved. Quiet on failure."""
+    """One look at the feed, folded in and saved, and kept whole for the
+    map. A failure is logged once, and the recovery once."""
     request = urllib.request.Request(FEED, headers={"User-Agent": USER_AGENT})
     try:
         with urllib.request.urlopen(request, timeout=TIMEOUT) as response:
             spots = json.loads(response.read().decode("utf-8", "replace"))
-    except Exception as exc:                       # no network is the usual reason
-        log.debug("spots: not sampled (%s)", exc)
+    except (OSError, ValueError) as exc:           # no network is the usual reason
+        if not _failing[0]:
+            log.warning("POTA spot feed not reachable, the map's activators wait for it: %s", exc)
+            _failing[0] = True
         return None
+    if _failing[0]:
+        log.info("POTA spot feed reachable again")
+        _failing[0] = False
+    with _live_lock:
+        _live.update(taken=time.time(), spots=live_batch(spots),
+                     as_of=datetime.now(timezone.utc).isoformat(timespec="seconds"))
     data = _load()
     new = fold(data, spots)
     try:
         _save(data)
     except OSError as exc:
-        log.debug("spots: could not save (%s)", exc)
+        log.warning("POTA spot record could not be saved at %s: %s", STORE, exc)
     log.debug("spots: %d on the feed, %d new", len(spots or []), new)
     return new
 

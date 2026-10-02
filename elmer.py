@@ -1056,6 +1056,11 @@ def main():
         # One small public request every twenty minutes; empty if there is
         # no route out, and nothing of the operator's goes with it.
         spotlog.watch()
+        # WSJT-X's decodes, for the reach map's "heard here" layer. It only
+        # listens - on this machine alone unless the operator opens it - and
+        # a port another program holds is stood aside from, not fought for.
+        from elmer import wsjtx as _wsjtx
+        _wsjtx.listener().start()
         # The FCC's license files: whichever this unit has read are looked
         # at again when the FCC posts a newer one - a HEAD request twice a
         # day, the download only on the Sunday it changes.

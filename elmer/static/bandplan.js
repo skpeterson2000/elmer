@@ -148,7 +148,11 @@ async function bpLoad() {
      that this hobby is not for them yet. So the default is the first band on
      this list they have *phone* privileges on: 20 m for a General, 2 m for a
      Technician, which is where each of them actually is. */
-  const asked = decodeURIComponent(location.hash.slice(1)).toLowerCase();
+  /* "#20m" opens 20 m; "#20m,spots" opens it at the reach map with the
+     parks shown - the POTA page's way in to who is on the air. */
+  const hashParts = decodeURIComponent(location.hash.slice(1)).toLowerCase().split(',');
+  const asked = hashParts[0];
+  bpWantSpots = hashParts.includes('spots');
   const linked = asked && bpData.bands.find(
     b => b.name.replace(/\s+/g, '').toLowerCase() === asked.replace(/\s+/g, ''));
   const known = name => name && bpData.bands.some(b => b.name === name);
@@ -1093,18 +1097,21 @@ function reliefAt(r, lat, lon, out) {
    drawn on it in lines. The field under it is worked out once a view and
    kept, so moving the slider only blends again - instant, even on a Pi. */
 let REACH_RGB = [74, 222, 128];
-function smooth01(e0, e1, x) { const t = Math.max(0, Math.min(1, (x - e0) / (e1 - e0))); return t * t * (3 - 2 * t); }
-function cloudAlpha(v) { return Math.pow(smooth01(5, 100, v), 0.8) * 0.92; }
-/* The overlay is the band's own color, as the band is everywhere else in
-   ELMER - 40 m yellow, 80 m blue - laid over the relief the way cloud lies
-   over the ground on a weather map: thin where the band is weak, dense where
-   it is strong, paling toward white only at the very best, as the plain
-   map's ramp does. "Cloud" is how it sits on the map, not its color. */
-function cloudColor(v, lit, out) {
-  const pale = smooth01(70, 100, v) * 0.6;
-  for (let i = 0; i < 3; i++) {
-    out[i] = (REACH_RGB[i] + (255 - REACH_RGB[i]) * pale) * lit;
-  }
+/* The band on the relief is the band on the plain map. The relief map is
+   the plain map with its two flat tints - dim blue sea, dim charcoal land -
+   replaced by the relief, dimmed to sit where those tints sit, and then
+   the very same sum: the band's ramp, the ground showing through where the
+   band is weak and fading out by REACH_TINT_FADE, all of it shaded by night.
+   Where the band is strong the two maps are the same pixel. The slider
+   blends that toward the relief at full brightness, the bare ground at 0%.
+   (It was a pale cloud of one flat color laid thinly over a bright ground,
+   which on 20 m put green at a third strength over green lowland and made
+   the relief look the worse map.) */
+const RELIEF_UNDER_BAND = 0.5;                 // the relief's brightness under the band, against bare
+function reliefBand(groundC, rampC, bgC, v, op) {
+  const f = Math.max(0, 1 - v / REACH_TINT_FADE);
+  const plain = rampC + (groundC * RELIEF_UNDER_BAND - bgC) * f;
+  return groundC + (plain - groundC) * op;
 }
 /* The field kept for one view: the score, the night's shade and the shaded
    ground under each pixel. A score below zero is past the far side of the
@@ -1119,41 +1126,30 @@ function bpCloudField(parts, W, H) {
 function bpCloudPaint(px, f, coarse) {
   const {W, H, score, shade, ground} = f;
   const op = Math.max(0, Math.min(100, bpView.cloud)) / 100;
-  const alpha = new Float32Array(W * H);
-  for (let i = 0; i < alpha.length; i++) alpha[i] = score[i] < 0 ? 0 : cloudAlpha(score[i]) * op;
-  // the shadow: the cloud's own thickness averaged in 4-pixel blocks, read up and to the left
-  const S = 4, sw = Math.ceil(W / S), sh = Math.ceil(H / S), small = new Float32Array(sw * sh);
-  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) small[((y / S) | 0) * sw + ((x / S) | 0)] += alpha[y * W + x] / (S * S);
-  const off = 5 / (coarse ? 2 : 1);
-  const cl = [0, 0, 0];
-  for (let y = 0; y < H; y++) {
-    const fy = Math.max(0, Math.min(sh - 1.001, (y - off) / S - 0.5)), y0 = fy | 0, ty = fy - y0;
-    for (let x = 0; x < W; x++) {
-      const i = y * W + x, o = i * 4;
-      if (score[i] < 0) { px[o] = REACH_BG[0]; px[o + 1] = REACH_BG[1]; px[o + 2] = REACH_BG[2]; px[o + 3] = 255; continue; }
-      const fx = Math.max(0, Math.min(sw - 1.001, (x - off) / S - 0.5)), x0 = fx | 0, tx = fx - x0;
-      const s0 = small[y0 * sw + x0] + (small[y0 * sw + x0 + 1] - small[y0 * sw + x0]) * tx;
-      const s1 = small[(y0 + 1) * sw + x0] + (small[(y0 + 1) * sw + x0 + 1] - small[(y0 + 1) * sw + x0]) * tx;
-      const k = 1 - 0.35 * (s0 + (s1 - s0) * ty);
-      const a = alpha[i];
-      cloudColor(score[i], 0.92 + 0.08 * shade[i], cl);
-      for (let c = 0; c < 3; c++) px[o + c] = ground[i * 3 + c] * k * (1 - a) + cl[c] * a;
-      px[o + 3] = 255;
-    }
+  for (let i = 0; i < W * H; i++) {
+    const o = i * 4, v = score[i];
+    if (v < 0) { px[o] = REACH_BG[0]; px[o + 1] = REACH_BG[1]; px[o + 2] = REACH_BG[2]; px[o + 3] = 255; continue; }
+    const k = Math.round(v) * 3, sh = shade[i];
+    for (let c = 0; c < 3; c++) px[o + c] = reliefBand(ground[i * 3 + c], REACH_LUT[k + c] * sh, REACH_BG[c] * sh, v, op);
+    px[o + 3] = 255;
   }
-  /* The isolines, two pixels wide in a dark shade of the band's color, so
-     they show on the band-colored overlay and on the ground alike: one dark
-     pixel is lost on a busy ground. Not while the hand is moving. */
+  /* The isolines in the plain map's own shade - its ramp at that score,
+     darkened as the plain map darkens a line, and shaded by night - two
+     pixels wide so they hold on a busy ground, and the same whatever the
+     slider says, so at 0% the forecast is the ground with its lines on it.
+     Not while the hand is moving. */
   if (coarse) return;
   const band = v => { let b = 0; for (const c of REACH_CONTOURS) if (v >= c) b++; return b; };
-  const ink = REACH_RGB.map(c => c * 0.4);
-  const mark = j => { const o = j * 4; px[o] = ink[0]; px[o + 1] = ink[1]; px[o + 2] = ink[2]; };
+  const mark = (j, v) => {
+    const o = j * 4, k = Math.round(v) * 3, sh = shade[j] * 0.55;
+    px[o] = REACH_LUT[k] * sh; px[o + 1] = REACH_LUT[k + 1] * sh; px[o + 2] = REACH_LUT[k + 2] * sh;
+  };
   for (let y = 0; y < H - 1; y++) {
     for (let x = 0; x < W - 1; x++) {
       const i = y * W + x;
       if (score[i] < 0 || score[i + 1] < 0 || score[i + W] < 0) continue;
       const b = band(score[i]);
-      if (b !== band(score[i + 1]) || b !== band(score[i + W])) { mark(i); mark(i + 1); mark(i + W); }
+      if (b !== band(score[i + 1]) || b !== band(score[i + W])) { const v = score[i]; mark(i, v); mark(i + 1, v); mark(i + W, v); }
     }
   }
 }
@@ -1344,12 +1340,8 @@ function reachLegend() {
   if (!ramp) return;
   let stops;
   if (bpView.base === 'relief') {
-    const ground = [96, 112, 104], op = bpView.cloud / 100, cl = [0, 0, 0];
-    stops = [0, 20, 40, 60, 80, 100].map(v => {
-      const a = cloudAlpha(v) * op;
-      cloudColor(v, 1, cl);
-      return [v, ground.map((g, i) => Math.round(g * (1 - a) + cl[i] * a))];
-    });
+    const ground = [96, 112, 104], op = bpView.cloud / 100;
+    stops = [0, 15, 30, 45, 60, 70, 100].map(v => [v, ground.map((g, i) => Math.round(reliefBand(g, REACH_LUT[v * 3 + i], REACH_BG[i], v, op)))]);
   } else {
     stops = [0, 15, 40, 70, 100].map(v => [v, [REACH_LUT[v * 3], REACH_LUT[v * 3 + 1], REACH_LUT[v * 3 + 2]]]);
   }
@@ -1395,8 +1387,9 @@ const bpView = {lat: 0, lon: 0, zoom: 1, dragging: false, refined: null, timer: 
                 base: recall('bandplan.base', 'relief') === 'plain' ? 'plain' : 'relief',   // the ground - see bpReliefFor
                 cloud: bpCloudRecalled()};               // the cloud's strength, 0-100 - see bpCloudPaint
 function bpCloudRecalled() {
-  const n = Number(recall('bandplan.cloud', 85));
-  return isFinite(n) ? Math.max(0, Math.min(100, n)) : 85;
+  // Full by default: the band then reads exactly as on the plain map.
+  const n = Number(recall('bandplan.cloud', 100));
+  return isFinite(n) ? Math.max(0, Math.min(100, n)) : 100;
 }
 
 /* The great-circle view: azimuthal equidistant, centered on the QTH. On
@@ -1554,6 +1547,8 @@ function bpReachDrawGlobe(coarse) {
   ctx.fillStyle = here; ctx.beginPath(); ctx.arc(cxf, cyf, 2.2, 0, 2 * PI); ctx.fill();
   const zoomEl = document.getElementById('bp-reach-zoom');
   if (zoomEl) zoomEl.textContent = view.zoom > 1.05 ? '×' + (view.zoom < 10 ? view.zoom.toFixed(1) : Math.round(view.zoom)) + ' · great circle' : 'great circle';
+  bpPlace = (lon, lat) => { const p = project(lon, lat); return p[2] > PI * 0.995 ? null : [p[0], p[1]]; };
+  bpSpotsDraw();
 }
 
 function bpReachDraw(coarse) {
@@ -1682,12 +1677,17 @@ function bpReachDraw(coarse) {
   }
   const zoomEl = document.getElementById('bp-reach-zoom');
   if (zoomEl) zoomEl.textContent = view.zoom > 1.05 ? '×' + (view.zoom < 10 ? view.zoom.toFixed(1) : Math.round(view.zoom)) + (fine ? ' · ' + fine.step + '° detail' : ' · 5° grid') : '';
+  bpPlace = (lon, lat) => {
+    const x = X(lon), y = Y(lat);
+    return x >= -12 && x <= full.w + 12 && y >= -12 && y <= full.h + 12 ? [x, y] : null;
+  };
+  bpSpotsDraw();
 }
 
 /* A settled zoom asks the model for the window at a finer step. */
 async function bpRefine() {
   const d = bpReachFor;
-  if (!d || bpView.zoom < 1.8 || bpView.proj === 'globe') { bpView.refined = null; return; }
+  if (!d || d.spots_only || bpView.zoom < 1.8 || bpView.proj === 'globe') { bpView.refined = null; return; }
   const spanLon = 360 / bpView.zoom, spanLat = 180 / bpView.zoom;
   const top = Math.min(89.5, bpView.lat + spanLat * 0.6), bottom = Math.max(-89.5, bpView.lat - spanLat * 0.6);
   const left = bpView.lon - spanLon * 0.6, span = Math.min(360, spanLon * 1.2);
@@ -1834,6 +1834,214 @@ function bpReachBind() {
     cloud.addEventListener('change', () => remember('bandplan.cloud', bpView.cloud));
   }
   showCloud();
+}
+
+/* ----------------------------------------------------------- spots ---
+   Who is on the air, over the forecast for the band on the map: POTA
+   activators at their parks - a tree, to say "a park, go and work it" -
+   and the stations this unit's own WSJT-X has decoded, at their grid
+   squares, a dot. Both in the band's own color, ringed dark and light so
+   they stand out of the cloud of that same color, and fading as they age.
+   They are drawn on a canvas of their own over the map; each of the map's
+   draws leaves bpPlace behind, which turns a place into that view's
+   pixels, flat or great circle. (SOTA's summits wait on SOTA's own terms
+   for software that connects to its API - see DESIGN.) */
+let bpSpots = null, bpPlace = null, bpSpotBand = null, bpSpotHits = [], bpSpotTimer = null;
+let bpWantSpots = false;           // opened from a link asking for the spots - see bpLoad
+const SPOT_REFRESH_MS = 60 * 1000;
+
+const spotBandKey = name => String(name || '').replace(/\s+/g, '').toLowerCase();
+
+function spotAgeMin(spot, kind, now) {
+  if (kind === 'heard') return (now / 1000 - spot.at) / 60;
+  const t = spot.spotted ? Date.parse(spot.spotted) : NaN;
+  return isFinite(t) ? (now - t) / 60000 : 0;
+}
+
+function spotAgoText(min) {
+  return min < 1 ? 'just now' : min < 90 ? Math.round(min) + ' min ago' : Math.round(min / 60) + ' h ago';
+}
+
+/* A park: an evergreen, its point on the place. */
+function spotTree(ctx, x, y, k, fill) {
+  const s = 7 * k;
+  const shape = () => {
+    ctx.beginPath();
+    ctx.moveTo(x, y - 2.1 * s); ctx.lineTo(x - s, y - 0.2 * s); ctx.lineTo(x - 0.45 * s, y - 0.2 * s);
+    ctx.lineTo(x - 1.25 * s, y + 0.9 * s); ctx.lineTo(x + 1.25 * s, y + 0.9 * s); ctx.lineTo(x + 0.45 * s, y - 0.2 * s);
+    ctx.lineTo(x + s, y - 0.2 * s); ctx.closePath();
+  };
+  ctx.fillStyle = 'rgba(13,17,23,.95)'; ctx.fillRect(x - 0.32 * s - k, y + 0.9 * s, 0.64 * s + 2 * k, 0.55 * s + k);
+  ctx.fillStyle = '#c9b18a'; ctx.fillRect(x - 0.32 * s, y + 0.9 * s, 0.64 * s, 0.5 * s);
+  shape(); ctx.lineJoin = 'round';
+  ctx.lineWidth = 3.2 * k; ctx.strokeStyle = 'rgba(13,17,23,.95)'; ctx.stroke();
+  ctx.fillStyle = fill; ctx.fill();
+  ctx.lineWidth = 1.1 * k; ctx.strokeStyle = 'rgba(255,255,255,.9)'; ctx.stroke();
+}
+
+/* A station heard here: a dot. */
+function spotDot(ctx, x, y, k, fill) {
+  ctx.beginPath(); ctx.arc(x, y, 4.2 * k, 0, 2 * Math.PI);
+  ctx.lineWidth = 3 * k; ctx.strokeStyle = 'rgba(13,17,23,.95)'; ctx.stroke();
+  ctx.fillStyle = fill; ctx.fill();
+  ctx.lineWidth = 1 * k; ctx.strokeStyle = 'rgba(255,255,255,.85)'; ctx.stroke();
+}
+
+function bpSpotsOn(id) { const el = document.getElementById(id); return !el || el.checked; }
+
+function bpSpotsDraw() {
+  const canvas = document.getElementById('bp-reach-spots');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  bpSpotHits = [];
+  if (!bpSpots || !bpPlace || !bpReachFor) return;
+  const k = canvas.width / Math.max(1, canvas.clientWidth || canvas.width);
+  const fill = 'rgb(' + REACH_RGB.map(Math.round).join(',') + ')';
+  const band = spotBandKey(bpSpotBand), now = Date.now();
+  const layers = [];
+  if (bpSpotsOn('bp-spots-heard')) layers.push(['heard', (bpSpots.heard && bpSpots.heard.spots) || [], 30]);
+  if (bpSpotsOn('bp-spots-pota')) layers.push(['pota', (bpSpots.pota && bpSpots.pota.spots) || [], 75]);
+  layers.forEach(([kind, spots, fade]) => {
+    // oldest first, so the newest is on top
+    spots.filter(s => spotBandKey(s.band) === band)
+      .map(s => ({s, age: spotAgeMin(s, kind, now)}))
+      .sort((a, b) => b.age - a.age)
+      .forEach(({s, age}) => {
+        const at = bpPlace(s.lon, s.lat);
+        if (!at) return;
+        ctx.globalAlpha = Math.max(0.4, 1 - 0.6 * Math.min(1, age / fade));
+        if (kind === 'pota') spotTree(ctx, at[0], at[1], k, fill); else spotDot(ctx, at[0], at[1], k, fill);
+        bpSpotHits.push({x: at[0], y: at[1] - (kind === 'pota' ? 6 * k : 0), kind, s, age});
+      });
+  });
+  ctx.globalAlpha = 1;
+}
+
+function bpSpotTipHTML(h) {
+  const s = h.s, freq = s.mhz ? s.mhz.toFixed(3) + ' MHz' : '', ago = spotAgoText(h.age);
+  if (h.kind === 'pota') {
+    return '<b>' + escapeHTML(s.call) + '</b> is on the air from <b>' + escapeHTML(s.ref) + '</b>' +
+      (s.name ? ' &mdash; ' + escapeHTML(s.name) : '') + '<br>' + escapeHTML([freq, s.mode].filter(Boolean).join(' ')) +
+      ', spotted ' + ago + '. A park on the air is a contact waiting: give them a call.';
+  }
+  return '<b>' + escapeHTML(s.call) + '</b> (' + escapeHTML(s.grid) + ') heard here at ' +
+    (s.snr > 0 ? '+' : '') + s.snr + ' dB' + (freq ? ' on ' + escapeHTML(freq) : '') + (s.mode ? ' ' + escapeHTML(s.mode) : '') +
+    ', ' + ago + '.';
+}
+
+function bpSpotHover(e) {
+  const tip = document.getElementById('bp-spot-tip'), canvas = document.getElementById('bp-reach-map');
+  if (!tip || !canvas) return;
+  if (e.buttons || !bpSpotHits.length) { tip.hidden = true; return; }
+  const r = canvas.getBoundingClientRect(), k = canvas.width / r.width;
+  const x = (e.clientX - r.left) * k, y = (e.clientY - r.top) * k;
+  let best = null, bestD = 11 * k;
+  bpSpotHits.forEach(h => { const d = Math.hypot(h.x - x, h.y - y); if (d < bestD) { best = h; bestD = d; } });
+  if (!best) { tip.hidden = true; return; }
+  tip.innerHTML = bpSpotTipHTML(best);
+  tip.hidden = false;
+  const left = Math.min(r.width - tip.offsetWidth - 6, Math.max(6, e.clientX - r.left + 14));
+  const top = e.clientY - r.top + 14 + tip.offsetHeight > r.height ? e.clientY - r.top - tip.offsetHeight - 10 : e.clientY - r.top + 14;
+  tip.style.left = left + 'px'; tip.style.top = Math.max(4, top) + 'px';
+}
+
+function bpSpotsLine() {
+  const line = document.getElementById('bp-spots-line');
+  if (!line || !bpSpots) return;
+  const band = spotBandKey(bpSpotBand), name = bpSpotBand || 'this band';
+  const parts = [];
+  const pota = bpSpots.pota || {};
+  if (bpSpotsOn('bp-spots-pota')) {
+    const here = (pota.spots || []).filter(s => spotBandKey(s.band) === band).length;
+    parts.push(pota.as_of && !pota.stale
+      ? '<b>' + here + '</b> park' + (here === 1 ? '' : 's') + ' on the air on ' + escapeHTML(name) +
+        ' (POTA, as of ' + escapeHTML(pota.as_of.slice(11, 16)) + ' UTC)'
+      : 'POTA activators show once the feed has been sampled - every twenty minutes, when the unit has a network');
+  }
+  const heard = bpSpots.heard || {};
+  if (bpSpotsOn('bp-spots-heard')) {
+    const all = heard.spots || [], here = all.filter(s => spotBandKey(s.band) === band).length;
+    let words;
+    if (!heard.enabled) words = 'the WSJT-X listener is off';
+    else if (heard.error) words = '<span style="color:var(--amber)">WSJT-X listener: ' + escapeHTML(heard.error) + '</span>';
+    else if (!heard.last_packet) words = 'listening for WSJT-X on ' + escapeHTML(heard.where) + ' - nothing received yet; see the listener below';
+    else {
+      words = '<b>' + here + '</b> station' + (here === 1 ? '' : 's') + ' heard here on ' + escapeHTML(name) +
+        ' in the last ' + heard.minutes + ' minutes' + (all.length > here ? ', ' + (all.length - here) + ' on other bands' : '');
+      const on = (heard.dial || []).map(d => d.mhz + ' MHz ' + d.mode).join(', ');
+      if (on) words += ' &middot; WSJT-X is on ' + escapeHTML(on);
+      if (heard.quiet_s > 300) words += ' &middot; nothing from it for ' + Math.round(heard.quiet_s / 60) + ' min';
+    }
+    parts.push(words);
+  }
+  line.innerHTML = parts.join(' &middot; ');
+}
+
+async function bpSpotsFetch() {
+  const box = document.getElementById('bp-reach');
+  if (!box || box.hidden || document.visibilityState === 'hidden') return;
+  try { bpSpots = await api('/api/spots'); } catch (e) { return; }
+  bpSpotsDraw();
+  bpSpotsLine();
+  bpWsjtxFill();
+}
+
+function bpSpotsStart() {
+  if (bpSpotTimer) { bpSpotsDraw(); bpSpotsLine(); return; }
+  bpSpotTimer = setInterval(bpSpotsFetch, SPOT_REFRESH_MS);
+  bpSpotsFetch();
+  const map = document.getElementById('bp-reach-map');
+  if (map) {
+    map.addEventListener('pointermove', bpSpotHover);
+    map.addEventListener('pointerleave', () => { const t = document.getElementById('bp-spot-tip'); if (t) t.hidden = true; });
+  }
+  ['bp-spots-pota', 'bp-spots-heard'].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.checked = recall('bandplan.' + id, '1') !== '0';
+    el.addEventListener('change', () => { remember('bandplan.' + id, el.checked ? '1' : '0'); bpSpotsDraw(); bpSpotsLine(); });
+  });
+  if (bpWantSpots) {
+    // came here to see who is on the air: the parks on, and the map in view
+    bpWantSpots = false;
+    const parks = document.getElementById('bp-spots-pota');
+    if (parks && !parks.checked) { parks.checked = true; remember('bandplan.bp-spots-pota', '1'); }
+    const box = document.getElementById('bp-reach');
+    if (box && !box.hidden) box.scrollIntoView({block: 'start'});
+  }
+  const save = document.getElementById('bp-wsjtx-save');
+  if (save) save.addEventListener('click', bpWsjtxSave);
+}
+
+let bpWsjtxFilled = false;
+function bpWsjtxFill() {
+  const c = bpSpots && bpSpots.heard && bpSpots.heard.config;
+  if (!c || bpWsjtxFilled) return;
+  bpWsjtxFilled = true;
+  document.getElementById('bp-wsjtx-on').checked = !!c.enabled;
+  document.getElementById('bp-wsjtx-host').value = c.host;
+  document.getElementById('bp-wsjtx-port').value = c.port;
+  document.getElementById('bp-wsjtx-group').value = c.multicast || '';
+}
+
+async function bpWsjtxSave() {
+  const out = document.getElementById('bp-wsjtx-out');
+  out.textContent = 'opening...';
+  let d;
+  try {
+    d = await postJSON('/api/spots/wsjtx', {
+      enabled: document.getElementById('bp-wsjtx-on').checked,
+      host: document.getElementById('bp-wsjtx-host').value.trim(),
+      port: parseInt(document.getElementById('bp-wsjtx-port').value, 10),
+      multicast: document.getElementById('bp-wsjtx-group').value.trim(),
+    });
+  } catch (e) {
+    out.textContent = 'only from the unit itself - the listener is not changed from across the network';
+    return;
+  }
+  out.innerHTML = d.ok ? 'set - listening on ' + escapeHTML(d.heard.where) : '<span style="color:var(--amber)">' + escapeHTML(d.error) + '</span>';
+  setTimeout(bpSpotsFetch, 1500);
 }
 
 /* One way or the round trip - see propagation.reach_map. */
@@ -2223,6 +2431,81 @@ document.addEventListener('station-antenna', () => {
   const band = bpData && bpData.bands.find(b => b.name === bpBand);
   if (band) bpReach(band);
 });
+/* 6 m and 2 m get the map with no forecast on it. What carries them past
+   line of sight - sporadic E, meteor scatter, ducting, aurora - is local,
+   short-lived and not in the model, so the server sends an empty grid, the
+   sun and the QTH, and the map is the ground, the night and the spots: the
+   stations actually being heard and the parks actually on the air, which on
+   these bands are the only evidence an opening is there. The controls that
+   only shape a forecast are put away while it shows. */
+const SPOTS_ONLY_BANDS = ['6m', '2m'];
+const SPOTS_ONLY_WORDS = {
+  '6m': '6 m has no forecast here: past line of sight it opens by sporadic E, meteor scatter and, ' +
+        'near the top of the sun\'s cycle, the F layer - local, short-lived openings no solar number predicts. The spots ' +
+        'are the evidence. Stations your WSJT-X decodes, and parks on the air, where they are right now: a cluster of ' +
+        'them several hundred to about 1,400 miles off is sporadic E open in that direction, and worth a call while it lasts.',
+  '2m': '2 m has no forecast here: past line of sight it is carried by tropospheric ducting, now and then sporadic E, ' +
+        'meteor scatter and aurora, none of which the model predicts. The spots show what is getting through right ' +
+        'now; most 2 m contacts are line of sight, or through a repeater.',
+};
+
+function bpReachForecastShown(on) {
+  const row = document.getElementById('bp-reach-proj');
+  const controls = row ? row.closest('.row') : null;
+  if (controls) {
+    [...controls.children].forEach(el => {
+      const keep = el.classList.contains('bp-pair') || el.id === 'bp-reach-reset';
+      if (!keep) el.style.display = on ? '' : 'none';
+    });
+  }
+  const ramp = document.querySelector('#bp-reach .bp-reach-ramp');
+  if (ramp && ramp.parentElement) ramp.parentElement.style.display = on ? '' : 'none';
+  if (!on) {
+    ['bp-reach-gain', 'bp-reach-mode', 'bp-reach-far', 'bp-reach-laid', 'bp-reach-nvis-words'].forEach(id => {
+      const el = document.getElementById(id); if (el) el.hidden = true;
+    });
+  }
+  const words = document.getElementById('bp-reach-spotsonly');
+  if (words) words.hidden = on;
+  const a = document.getElementById('bp-reach-title-a'), b = document.getElementById('bp-reach-title-b');
+  if (a) a.textContent = on ? 'Where' : 'Who is on';
+  if (b) b.textContent = on ? 'reaches from here, now' : 'now - heard here and spotted';
+}
+
+async function bpReachSpotsOnly(band) {
+  const name = band.name.replace(/\s+/g, ''), key = name + '|spots';
+  document.getElementById('bp-reach-band').innerHTML = bandTag(band.name);
+  reachPaint(band.name);
+  bpReachOutOfBounds(null, band.name);
+  const words = document.getElementById('bp-reach-spotsonly');
+  if (words) words.textContent = SPOTS_ONLY_WORDS[name] || '';
+  const note = document.getElementById('bp-reach-note');
+  let d = bpReachCache[key];
+  if (!d) {
+    document.getElementById('bp-reach-when').textContent = '';
+    try {
+      d = await (await fetch('/api/bandplan/reach?band=' + encodeURIComponent(name), {cache: 'no-store'})).json();
+    } catch (e) {
+      if (note) note.textContent = 'no map just now';
+      return;
+    }
+    if (!d.ok) { if (note) note.textContent = d.error || 'no map just now'; return; }
+    bpReachCache[key] = d;
+  }
+  if (bpBand !== band.name) return;              // the band moved on while this was fetched
+  if (note) note.textContent = '';
+  const fresh = bpView.band !== key;
+  bpReachFor = d;
+  bpView.band = key;
+  bpView.refined = null;
+  if (fresh && bpView.zoom <= 1.001) bpView.lon = d.qth ? d.qth.lon : 0;
+  bpSpotBand = band.name;
+  bpReachBind();
+  bpReachDraw(false);
+  bpSpotsStart();
+  document.getElementById('bp-reach-when').textContent = 'no forecast on this band - the spots are the evidence';
+}
+
 async function bpReach(band) {
   const box = document.getElementById('bp-reach');
   if (!box) return;
@@ -2232,7 +2515,10 @@ async function bpReach(band) {
   const ant = bpReachAntenna();
   const key = band.name.replace(/\s+/g, '') + '|' + mode + '|' + ant.antenna + '|' + ant.height + '|' + ant.watts + '|' + ant.emission;
   const hf = band.high <= 30;
-  box.hidden = !hf;
+  const spotsOnly = !hf && SPOTS_ONLY_BANDS.includes(band.name.replace(/\s+/g, ''));
+  box.hidden = !hf && !spotsOnly;
+  bpReachForecastShown(hf);
+  if (spotsOnly) { bpReachSpotsOnly(band); return; }
   if (!hf) return;
   document.getElementById('bp-reach-band').innerHTML = bandTag(band.name);
   reachPaint(band.name);
@@ -2271,8 +2557,10 @@ async function bpReach(band) {
     bpView.refined = null;
     if (bpView.zoom <= 1.001) bpView.lon = d.qth ? d.qth.lon : 0;
   }
+  bpSpotBand = band.name;
   bpReachBind();
   bpReachDraw(false);
+  bpSpotsStart();
   if (bpView.zoom >= 1.8) bpRefine();
   document.getElementById('bp-reach-when').textContent = 'at ' + hourLabel(d.at) + ':00' +
     (d.muf_here ? ' · MUF(3000) here ' + d.muf_here + ' MHz' : '') +

@@ -8,6 +8,56 @@
 
 let acData = null;
 
+/* On the air now: the parks in the POTA sample the unit already holds,
+   counted by band, each band a way into the Band Plan's reach map with the
+   parks shown - which ones are calling, and which of them the band reaches
+   from here. HF has the forecast under them; 6 m and 2 m have the map with
+   the spots alone, since what opens them is not forecast. Anything else is
+   counted and said, not linked. */
+const AC_REACH_TOP_MHZ = 30;
+const AC_SPOTS_ONLY = ['6m', '2m'];
+
+async function acLive() {
+  const words = document.getElementById('ac-live-words'), bands = document.getElementById('ac-live-bands');
+  if (!words || !bands) return;
+  let d;
+  try { d = await api('/api/spots'); } catch (e) { return; }      // the panel's own words stand
+  const pota = (d && d.pota) || {};
+  const spots = pota.spots || [];
+  const when = document.getElementById('ac-live-when');
+  if (when) when.textContent = pota.as_of && !pota.stale ? 'POTA, as of ' + pota.as_of.slice(11, 16) + ' UTC' : '';
+  if (!pota.as_of || pota.stale) {
+    words.innerHTML = 'Who is activating shows here, and on the <a href="/bandplan#20m,spots">Band Plan\'s reach map</a>, ' +
+      'once the unit has sampled the POTA feed - it does every twenty minutes while it has a network.';
+    bands.innerHTML = '';
+    return;
+  }
+  const by = {};
+  spots.forEach(s => {
+    if (!s.band) return;
+    const b = by[s.band] || (by[s.band] = {name: s.band, mhz: s.mhz || 0, n: 0});
+    b.n += 1;
+  });
+  const rows = Object.values(by).sort((a, b) => b.n - a.n || a.mhz - b.mhz);
+  if (!rows.length) {
+    words.innerHTML = 'No parks are on the air in the latest sample of the POTA feed. The ' +
+      '<a href="/bandplan#20m,spots">Band Plan\'s reach map</a> shows them as they come up.';
+    bands.innerHTML = '';
+    return;
+  }
+  const total = rows.reduce((t, r) => t + r.n, 0);
+  words.innerHTML = '<b>' + total + '</b> park' + (total === 1 ? ' is' : 's are') + ' on the air right now, each an ' +
+    'operator calling for contacts. Pick a band to see them on the reach map, a tree at each park, over where that ' +
+    'band reaches from you at this hour - the ones inside the bright part are the ones you can most likely work.';
+  bands.innerHTML = rows.map(r => {
+    const label = bandSwatch(r.name) + escapeHTML(r.name) + ' <span class="muted">&middot; ' + r.n + '</span>';
+    return r.mhz && (r.mhz <= AC_REACH_TOP_MHZ || AC_SPOTS_ONLY.includes(r.name.replace(/\s+/g, '')))
+      ? '<a class="btn sm" href="/bandplan#' + encodeURIComponent(r.name.replace(/\s+/g, '')) + ',spots">' + label + '</a>'
+      : '<span class="btn sm ghost" title="no map for this band - the reach map covers HF, 6 m and 2 m">' +
+        label + '</span>';
+  }).join('');
+}
+
 /* The page and the filter have to count in the same thing. Asking somebody for
    a range in miles and answering in kilometers is the sort of mismatch that
    makes a reader distrust every other number on the page, and rightly. The
@@ -342,6 +392,8 @@ async function acLoad() {
   acLand(acData);
   acVerdicts();
 }
+
+if (document.getElementById('ac-live')) { acLive(); setInterval(acLive, 2 * 60 * 1000); }
 
 if (document.getElementById('ac-near')) {
   acLoad();

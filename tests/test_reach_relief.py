@@ -4,15 +4,18 @@
     python3 tests/test_reach_relief.py
 
 The map's land and sea were two flat tints. Now the ground is Natural
-Earth's shaded relief (tools/relief.py) and the forecast is a cloud over it,
-thickening and whitening as the reach strengthens, with numbered isolines in
-the band's color. **Map** puts the plain tints back, and **Cloud** sets
-how thick the cloud is drawn. What is held here:
+Earth's shaded relief (tools/relief.py), and the band is drawn over it
+exactly as the plain map draws it - the same ramp of the band's color, the
+same lines - with the relief where the plain map has its dim tints. **Map**
+puts the plain tints back, and **Cloud** blends the band back to the bare
+ground. What is held here:
 
   - the relief pictures ship, a whole world at two to one, small enough for
     a page and a Pi;
-  - the map opens on the relief, the slider at 85%;
-  - the slider fades the cloud alone: at 0% a strong place is the ground
+  - the map opens on the relief, the slider at 100%;
+  - at 100% a strong place is the plain map's own pixel - switching the map
+    does not change how the band looks;
+  - the slider fades the band alone: at 0% a strong place is the ground
     itself, and an isoline is the same color whatever the slider says;
   - the isolines are numbered;
   - **plain** is the old map, its slider is put away, and the choice is kept;
@@ -102,16 +105,23 @@ new Promise(async resolve => { try {
   out.strongest = strong >= 0 ? Math.round(f.score[strong]) : null;
   out.found = [strong >= 0 && f.score[strong] >= 70, lines.length > 100];
   // most of them: a coastline, a border or a number drawn over a few is fine
-  const ink = () => REACH_RGB.map(c => Math.round(c * 0.4));
-  const inked = () => { const k = ink(); return lines.filter((i, n) => n % 9 === 0).map(at).filter(c => c.every((v, j) => Math.abs(v - k[j]) <= 2)).length; };
+  // the plain map's own line: its ramp at that score, darkened, shaded by night
+  const ink = (j, v) => { const k = Math.round(v) * 3; return [0, 1, 2].map(c => REACH_LUT[k + c] * f.shade[j] * 0.55); };
+  const near = (c, k) => c.every((v, j) => Math.abs(v - k[j]) <= 3);
+  const inked = () => lines.filter((i, n) => n % 9 === 0).filter(i => {
+    const c = at(i);
+    return [i, i - 1, i - canvas.width].some(j => near(c, ink(i, f.score[j])));
+  }).length;
   const line = lines[0];
   const set = async pct => { cloud.value = pct; cloud.dispatchEvent(new Event('input')); await nap(250); };
-  await set(85);
+  await set(100);
   const strong85 = at(strong), line85 = at(line);
+  const plainPixel = [0, 1, 2].map(c => REACH_LUT[Math.round(f.score[strong]) * 3 + c] * f.shade[strong]);
+  out.plainSame = near(strong85, plainPixel);
+  out.plainPair = [strong85, plainPixel.map(Math.round)];
   await set(0);
   const strong0 = at(strong), line0 = at(line);
   const ground = [f.ground[strong * 3], f.ground[strong * 3 + 1], f.ground[strong * 3 + 2]];
-  out.clouded = strong85.reduce((s, c, i) => s + Math.abs(c - strong0[i]), 0) > 60;   // the overlay covers the ground
   // and it is the band's own color: the pixel's channels rank as the band's do
   const rank = c => [0, 1, 2].sort((a, b) => c[b] - c[a]).join('');
   out.bandHue = [rank(strong85) === rank(REACH_RGB), rank(REACH_RGB)];
@@ -184,20 +194,21 @@ def main():
     if got.get("error"):
         print("  page:", got["error"])
 
-    print("\n-- the map opens on the relief, the cloud at 85% --")
+    print("\n-- the map opens on the relief, the band at full --")
     check("Map opens on relief", got.get("opens"), "relief")
-    check("the slider opens at 85 and is shown", (got.get("slider"), got.get("sliderShown")), (85, True))
+    check("the slider opens at 100 and is shown", (got.get("slider"), got.get("sliderShown")), (100, True))
     check("the page's relief is read in, a whole world", got.get("relief"), [2048, 1024])
     check("the field under the cloud is kept for the view", got.get("kept"), True)
 
-    print("\n-- the slider fades the cloud alone --")
+    print("\n-- the band is the plain map's, and the slider fades it alone --")
     check(f"a strong place (best {got.get('strongest')}) and isolines were found on the map", got.get("found"), [True, True])
-    check("at 85% a strong place is covered by the overlay", got.get("clouded"), True)
+    check(f"at 100% a strong place is the plain map's own pixel ({got.get('plainPair')})", got.get("plainSame"), True)
     check("  in the band's own color, not white - the band is the band on every map",
           (got.get("bandHue") or [False])[0], True)
     check("at 0% it is the ground itself", got.get("bare"), True)
     check("an isoline is the same whatever the slider says", got.get("lineSteady"), True)
-    check(f"  and drawn in a dark shade of the band's color ({got.get('inkShare')} sampled)", got.get("lineInk"), True)
+    check(f"  and drawn as the plain map draws it, its ramp darkened ({got.get('inkShare')} sampled)",
+          got.get("lineInk"), True)
     check("moving the slider blends again rather than working the map out again", got.get("fieldKept"), True)
     check("the slider's setting is kept", got.get("sliderKept"), 0)
 

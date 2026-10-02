@@ -44,7 +44,7 @@ from . import (
     repeaters, rfexposure, rfpdf, runladder, show, smith, spotlog,
     srs, sweeps, terrain, ticket, touchstone, tournament, towerwitch,
     track, trivia, uls, units, update, vna, voice, weather,
-    whipbuild,
+    whipbuild, wsjtx,
 )
 from . import supporter
 from . import qso as qso_mod
@@ -1633,6 +1633,28 @@ def api_reference():
     return jsonify(record)
 
 
+@app.route("/api/spots")
+def api_spots():
+    """What is on the air for the reach map: the POTA activators from the
+    latest sample of the feed, and the stations this unit's own WSJT-X has
+    decoded lately. Nothing is fetched to answer this - the POTA feed is
+    the one sampled every twenty minutes anyway, and WSJT-X is local."""
+    return jsonify({"pota": spotlog.live(), "heard": wsjtx.listener().snapshot()})
+
+
+@app.route("/api/spots/wsjtx", methods=["POST"])
+def api_spots_wsjtx():
+    """Where ELMER listens for WSJT-X. Local only: opening a listening port
+    to the network is a decision for somebody at the unit."""
+    _local_json_or_403()
+    body = request.get_json(silent=True) or {}
+    why = wsjtx.listener().configure(body.get("enabled", True), str(body.get("host") or "127.0.0.1").strip(),
+                                     body.get("port") or 2237, str(body.get("multicast") or "").strip())
+    if why:
+        return jsonify({"ok": False, "error": why})
+    return jsonify({"ok": True, "heard": wsjtx.listener().snapshot()})
+
+
 @app.route("/api/activations/print", methods=["POST"])
 def api_activations_print():
     """The nearest parks, summits, or both, on a sheet for the vehicle.
@@ -2534,11 +2556,36 @@ _reach_cache = {}                      # (band, qth, reading) -> (made_at, map)
 REACH_CACHE_S = 600
 
 
+# Bands the reach map draws with no forecast at all: what opens them past
+# line of sight - sporadic E, meteor scatter, ducting, aurora - is local,
+# short-lived and not in the model, so a forecast would be made up. The map
+# is the ground, the night and the QTH, and the spots on it are the evidence.
+SPOTS_ONLY_BANDS = {"6m", "2m"}
+
+
+def _reach_spots_only(name):
+    """The reach map's frame for a band with no forecast: an empty grid, the
+    sun for the night's shade, and the QTH - what the page needs to draw the
+    spots in place, and nothing it would have to make up."""
+    connection = conn()
+    place = qth_for(connection, db.get_profile(connection))
+    if place.get("lat") is None:
+        return jsonify({"ok": False, "error": "no QTH - set one and the map has a here"}), 409
+    when = datetime.now(timezone.utc)
+    sun = celestial.sun_position(when)
+    return jsonify({"ok": True, "spots_only": True, "band": name, "step": 90.0, "lat0": 90.0, "lon0": -180.0,
+                    "rows": 3, "cols": 4, "window": False, "cells": [0] * 12, "night": [],
+                    "sun": {"dec": round(sun["dec"], 3), "gha": round(sun["gha"], 3)}, "at": when.isoformat(),
+                    "qth": {"lat": place["lat"], "lon": place["lon"], "short": place.get("short") or place.get("grid")}})
+
+
 @app.route("/api/bandplan/reach")
 def api_bandplan_reach():
     """Where the band reaches from here, now, as a coarse map - a model,
     from the reading the dashboard already has, cached ten minutes."""
     name = (request.args.get("band") or "").replace(" ", "")
+    if name in SPOTS_ONLY_BANDS:
+        return _reach_spots_only(name)
     mhz = next((f for n, f, _ in propagation.BANDS if n == name), None)
     if mhz is None or mhz > 30.0:
         return jsonify({"ok": False, "error": "no reach map for this band - the ionosphere is not what carries it"}), 404

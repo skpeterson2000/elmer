@@ -5562,6 +5562,42 @@ function vnCalWords(c) {
     (c.applied ? ', applied.' : ', <b>not applied</b> \u2014 sweeps are raw.');
 }
 
+/* The calibration buttons, marked as each standard is measured, so the
+   drill can be followed at a glance: OPEN, SHORT and LOAD turn green as
+   they are done, and with a calibration made and none under way all of
+   them and DONE stand green together. A V2 says what it holds
+   (calibration.measured); an instrument that calibrates on its own screen
+   says nothing, so there each button is marked as it succeeds and DONE or
+   a reset clears the drill, and DONE marks it made as a V2's would be. */
+function vnCalButtons() {
+  return [...document.querySelectorAll('[data-vna="cal-step"], [data-vna="cal-done"]')];
+}
+
+function vnCalMarks(c) {
+  if (!c) return;
+  const measured = c.measured || [];
+  const finished = c.has && !measured.length;
+  vnCalButtons().forEach(b => {
+    const v = b.getAttribute('data-vna') === 'cal-done' ? 'done' : b.getAttribute('data-value');
+    const on = finished ? ['open', 'short', 'load', 'done'].includes(v) : measured.includes(v);
+    b.classList.toggle('measured', on);
+  });
+}
+
+function vnCalMarkStep(action, value) {
+  if (action === 'cal-reset') { vnCalButtons().forEach(b => b.classList.remove('measured')); return; }
+  if (action === 'cal-done') {       // made: the same look a V2's finished calibration has
+    vnCalButtons().forEach(b => b.classList.toggle('measured', b.getAttribute('data-vna') === 'cal-done' ||
+      ['open', 'short', 'load'].includes(b.getAttribute('data-value'))));
+    return;
+  }
+  if (action !== 'cal-step') return;
+  const done = document.querySelector('[data-vna="cal-done"]');
+  if (done) done.classList.remove('measured');
+  const b = document.querySelector('[data-vna="cal-step"][data-value="' + value + '"]');
+  if (b) b.classList.add('measured');
+}
+
 function vnCtlEnable(on) {
   document.querySelectorAll('[data-vna]').forEach(b => { b.disabled = !on; });
 }
@@ -5634,6 +5670,8 @@ async function vnControl(button, confirmed) {
       ' MHz</b> over ' + r.span.points + ' points'
     : '';
   if (r.calibration) vnCtlSay(vnCalWords(r.calibration), 'var(--line-2)');
+  if (r.calibration) vnCalMarks(r.calibration);
+  else vnCalMarkStep(action, button.getAttribute('data-value'));
   vnCtlSay('<span class="mono">' + escapeHTML(r.sent) + '</span> &rarr; ' +
     (r.said ? '<span class="mono">' + escapeHTML(r.said) + '</span>'
             : '<span class="muted">accepted without comment</span>') + span,
@@ -5708,6 +5746,7 @@ if (document.getElementById('vn-chart')) {
               '<div class="small">' + vnCalWords(d.info.calibration) + '</div>'
             : '')
         : '<span style="color:var(--amber)">' + escapeHTML(d.error) + '</span>';
+      if (d.ok && d.info.calibration) vnCalMarks(d.info.calibration);
     } catch (err) {
       document.getElementById('vn-dev').textContent = 'no answer from ' + dev;
     }

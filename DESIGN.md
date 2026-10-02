@@ -116,6 +116,9 @@ project's drop, with nothing of yours on it.
 Nothing is sent that you have not either pressed for or switched on and been
 shown the contents of. See *Mail home*, below.
 
+One thing listens rather than fetches: the reach map's **heard here** layer reads WSJT-X's UDP decodes on port
+2237, bound to 127.0.0.1 unless the operator opens it from the unit itself. It receives; it never sends.
+
 
 ---
 
@@ -605,8 +608,25 @@ because they carry very different authority:
   very top as the plain map's ramp does, and the isolines are a dark shade
   of it so they show on the overlay and on the ground alike.
 
-  **Cloud** sets the cloud's strength, 0 to 100%, opening at 85. It fades
-  the cloud alone; the isolines and their numbers stay at full strength, so
+  It was still a different picture of the band from the plain map's, and
+  Scott said so (2026-10-02): switch between the two on 20 m and the relief
+  looked the worse map. It was - a flat green at a third strength over green
+  lowland lost the grading the plain map's ramp shows, and stayed lit by
+  night where the plain map darkens. So the band is now drawn on the relief
+  exactly as on the plain map: the relief map is the plain map with its two
+  flat tints replaced by the relief, dimmed to half to sit where those tints
+  sit, and then the plain map's own sum - the band's ramp, the ground
+  showing through where the band is weak and gone by 60, all of it shaded by
+  night - with the plain map's lines, its ramp darkened. Where the band is
+  strong the two maps are the same pixel, and the test holds them to it. A
+  screen blend - the ramp as light on the lit ground, which over black is
+  the plain map - was tried first and rejected: on a bright ground it went
+  milky where the band is weak and made the strong core look darker than
+  its edge. The cloud's drop shadow went with the cloud.
+
+  **Cloud** sets the band's strength over the ground, 0 to 100%, now opening
+  at 100 so the relief opens showing the band as the plain map does. It fades
+  the band alone; the isolines and their numbers stay at full strength, so
   at 0% the map is the ground with the forecast drawn on it in lines. The
   score, the night's shade and the shaded ground under every pixel are kept
   for the view, so moving the slider blends again and redraws the lines
@@ -1492,6 +1512,20 @@ The V and the rhombic are independent wires, and the travelling-wave sum works t
 ### A dipole's feed over real ground
 
 The feed resistance against height was the textbook's: the wire's 73 ohms less its mutual resistance with a perfect mirror image of itself, which falls toward nothing as the wire comes down. Scott challenged the 0 ohms at the foot of the plot, rightly - over real soil the reflection is partial and turned, and the soil absorbs power, which shows at the feed as resistance. Now the image is weighted by the ground's own reflection at normal incidence (`patterns.fresnel`, average soil, the band's frequency): Z = Z11 + Gamma Z12(2h), with the mutual reactance (Kraus, a hand-written sine integral beside the cosine one) because a complex Gamma mixes it in. Gamma = -1 gives the textbook back, and the textbook is still drawn, dotted. What the image method leaves out is the near-field soil loss, which below about a tenth of a wave adds more resistance still; the plot says to read it there as a floor. The heights table, the SWR, the match-height advice and the sheet all read the real-ground curve, so the page cannot print two match heights (`tests/test_antenna_advice.py`, `test_v_feedpoint.py`, `test_reachable_height.py`).
+
+### Spots on the reach map
+
+The reach map is a forecast; spots are what is happening. Two kinds go on it, both drawn on a canvas of their own laid over the map, so a refresh every minute repaints dots and not the forecast under them. Each of the map's draws - flat or great circle - leaves `bpPlace` behind, the function that turns a place into that view's pixels, and the spot layer uses it, so the spots follow every pan, zoom and projection without knowing which is showing. Both kinds are the band's own color, as everything about a band is in ELMER, ringed dark and light to stand out of the cloud of the same color; the shape says which kind: a tree for a park, a dot for a station heard.
+
+**POTA** costs nothing new. `spotlog` already samples the activator feed every twenty minutes for the park records; it now keeps the latest batch whole, in memory, with each spot's position (the park's, as the feed gives it), band and expiry. A spot past its expiry is gone, and a batch over ninety minutes old is treated as none - a unit that lost its network an hour ago is not shown an hour-old sky as now. The sampler's failures are logged once and its recovery once, instead of on every twenty-minute try.
+
+**Heard here** is `wsjtx.py`, a listener for WSJT-X's UDP protocol (NetworkMessage.hpp: Qt's QDataStream, big-endian, the magic 0xadbccbda). Status gives the dial frequency and so the band; Decode gives the message, and a message that names a grid - `CQ K1ABC FN42`, `W1AW K1ABC FN42` - places its sender at the middle of that square; RR73 looks like a grid and is excluded; WSPR decodes carry their grid outright. A decode replayed from a file is not the air now and is skipped. Every field is bounds-checked and a packet that is not the protocol is dropped and counted - the first logged, the rest counted - so nothing arriving on the port can stop the listener; a callsign from the network is escaped on the page as well as refused by the parser. `tests/test_spots.py` builds the packets byte for byte as WSJT-X does, and sends them to a real listener on a real socket.
+
+Two programs cannot share an ordinary UDP port, and Windows will let a second one bind it anyway and then hand each packet to one of them at random - so `SO_REUSEADDR` is set only when ELMER joins a multicast group, where every member gets every packet. On an ordinary port that GridTracker already holds, the bind fails, ELMER says so on the map and tries again each minute, and the multicast group is the way through.
+
+**6 m and 2 m** were left off the map entirely - "nothing for 6 m and up rather than a made-up map" - and the forecast still is: what opens them is sporadic E, meteor scatter, ducting and aurora, none of it in the model. But the spots are not a forecast, and on those bands they are the only evidence an opening is there; a run of 6 m FT8 decodes from 1,000 miles is how operators notice sporadic E at all. So the server answers those two bands with a frame and no forecast (`_reach_spots_only`: an empty grid, the sun, the QTH), the page draws the ground, the night and the spots on it, puts away the controls that only shape a forecast, and says why there is none. Scott asked why 6 m was excluded from the POTA page's links; this is the answer that made it a way in.
+
+**SOTA is not on the map, and why.** Its spot feed moved to a new API whose terms (api-db2.sota.org.uk/docs, read 2026-10-02) require prior approval for any AI-generated software that connects to it, a developer in the SOTA Reflector's API-consumers group, and a designated point of contact; the old endpoint now answers with a single notice saying it is deprecated. ELMER's code is written with an AI's help, so SOTA spots wait until that approval is in hand. The same terms bear on the summit lookups ELMER already makes from `api2.sota.org.uk` (`programs.py`, `references.py`); whether they continue is a question for the same approval.
 
 ### The terminator calculator
 

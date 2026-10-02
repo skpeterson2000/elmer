@@ -1128,6 +1128,10 @@ table.data tr.denied td { opacity: .45; }
 .who-note { padding: .4rem .3rem 0; line-height: 1.4; }
 .who-actions { display: flex; gap: .4rem; padding: 0 .2rem; }
 .btn.danger { color: var(--red); border-color: rgba(248, 81, 73, .35); }
+/* A step that is done - a calibration standard measured. Green, and a
+   check mark, so it does not rest on colour alone. */
+.btn.measured { color: var(--green); border-color: var(--green); background: rgba(63, 185, 80, .12); }
+.btn.measured::before { content: '\2713\00a0'; }
 
 /* ---------- the shack scoreboard ---------- */
 table.shack { width: 100%; }

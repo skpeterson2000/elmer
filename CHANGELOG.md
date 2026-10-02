@@ -5,6 +5,14 @@ which in this repository is written as a sentence about what changed for
 the person using it. `git log` has the rest. The build a unit runs is the
 short commit id on its dashboard and in every problem report.
 
+## 2026-10-02
+
+- 6 m and 2 m have a reach map with no forecast on it - the ground, the night and the spots - since what opens them is not forecast; the spots are the evidence. The POTA page's 6 m and 2 m buttons open it.
+- The POTA / SOTA page has **On the air now**: the parks being activated, counted by band, each HF band a button into the Band Plan's reach map with the parks shown over where that band reaches from you.
+- The relief map draws the band exactly as the plain map does - the same color ramp, the same lines, the same night shading - so switching between them no longer changes how the band looks; the relief shows through where the band is weak. The Cloud slider now opens at 100%.
+- The reach map shows who is on the air. **Spots** beside the Cloud slider puts the POTA activators on the band at their parks, each a small tree, and the stations your own WSJT-X or JTDX has decoded in the last half hour at their grid squares, each a dot - the forecast and what your antenna actually heard on one map. Hover one for the call, frequency and how long ago. The WSJT-X listener only listens, on this machine alone unless you open it, and stands aside if GridTracker or JTAlert already holds the port.
+- The VNA's calibration buttons turn green with a check as each standard is measured, and all of them stand green once a calibration is made.
+
 ## 2026-10-01
 
 - The meter bench on the Tools page has a card for the terminator a TEFV, terminated sloper or rhombic ends in, with a calculator: give it the resistance, your power, the share the resistor takes and the rating of the resistors you can buy, and it finds banks of identical non-inductive resistors that land within ten percent and carry the heat, with the voltage on each part. It takes the values you have in a drawer too, and the card says how to sink the bank in oil for cooling and what not to use.
