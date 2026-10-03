@@ -99,6 +99,13 @@ table.board tr.me td { color: var(--amber); font-weight: 600; }
               border-radius: 12px; border: 1px solid var(--line-2);
               background: var(--panel); color: var(--text); }
 .err { color: var(--red); margin-top: .8rem; }
+/* Q-code bingo's card: four by four, big enough for a thumb. */
+.qb-card { display: grid; grid-template-columns: repeat(4, 1fr); gap: .35rem; }
+.qb-sq { min-height: 4.4rem; border-radius: 10px; border: 1px solid var(--line, #2a3340); background: var(--panel, #161b22);
+  color: var(--text, #e6edf3); font: inherit; font-size: .82rem; line-height: 1.2; padding: .3rem; display: flex;
+  flex-direction: column; align-items: center; justify-content: center; gap: .2rem; text-align: center; }
+.qb-sq.on { background: #ffb454; color: #111; border-color: #ffb454; font-weight: 600; }
+.qb-sq b { font-size: .95rem; letter-spacing: .05em; }
 </style>
 </head>
 <body>
@@ -1102,6 +1109,49 @@ function escapeHTML(s) {
   return d.innerHTML;
 }
 
+/* ------------------------------------------------------- Q-code bingo */
+/* The card: sixteen meanings. Hear the table key a Q signal, tap what it
+   meant; four in a line, every one of them keyed, and call Bingo. The call
+   is checked at the unit against what was actually keyed. Marks are this
+   phone's to change until the game ends. */
+let qbMarks = null, qbSaid = '';
+function paintBingo(qb) {
+  if (!qbMarks || !qb.calls) { qbMarks = new Set(qb.marked || []); if (!qb.calls) qbSaid = ''; }
+  const won = qb.winner !== null && qb.winner !== undefined;
+  const mine = won && qb.winner === me.id;
+  const head = won
+    ? `<h2 style="margin:0 0 .3rem">${mine ? 'Bingo - you won!' : 'Bingo - ' + escapeHTML(qb.winner_name || 'somebody') + ' won'}</h2>`
+    : qb.all_called ? '<h2 style="margin:0 0 .3rem">Every Q signal has been keyed</h2><p class="clock" style="margin:0 0 .5rem">Check your card - a line of four you marked right is a Bingo.</p>'
+    : `<h2 style="margin:0 0 .3rem">Q-code bingo</h2><p class="clock" style="margin:0 0 .5rem">${qb.calls
+        ? 'Call ' + qb.calls + ' of ' + qb.of + ' - listen to the table and mark what it meant.'
+        : 'Listen to the table: it keys a Q signal, you mark what it means.'}</p>`;
+  const codes = qb.card_codes || [];
+  const cells = qb.card.map((m, i) => `<button type="button" class="qb-sq${qbMarks.has(i) ? ' on' : ''}" data-qb-sq="${i}"${won ? ' disabled' : ''}>
+      <span>${escapeHTML(m)}</span>${codes[i] ? `<b class="mono">${escapeHTML(codes[i])}</b>` : ''}</button>`).join('');
+  view.innerHTML = `<div class="state" style="padding:.6rem .1rem;text-align:left">${head}
+      <div class="qb-card">${cells}</div>
+      ${won ? (codes.length ? '<p class="clock" style="margin-top:.6rem">Each square now shows its code - that is the lesson.</p>' : '')
+        : '<button type="button" class="btn primary" id="qb-claim" style="width:100%;margin-top:.7rem;font-size:1.15rem">Bingo!</button>'}
+      <p class="clock" id="qb-said" style="margin-top:.5rem">${escapeHTML(qbSaid)}</p></div>`;
+}
+document.addEventListener('click', async e => {
+  const sq = e.target.closest('[data-qb-sq]');
+  if (sq && !sq.disabled && qbMarks) {
+    const i = +sq.dataset.qbSq, on = !qbMarks.has(i);
+    if (on) qbMarks.add(i); else qbMarks.delete(i);
+    sq.classList.toggle('on', on);
+    api('/api/party/qbingo/mark', {player: me.id, square: i, on: on});
+    return;
+  }
+  if (e.target.closest('#qb-claim')) {
+    const r = await api('/api/party/qbingo/claim', {player: me.id});
+    qbSaid = (r && r.data && r.data.words) || 'no answer from the table - try again';
+    const box = document.getElementById('qb-said');
+    if (box) box.textContent = qbSaid;
+    if (r && r.data && r.data.won) { shownRound = null; tick(); }
+  }
+});
+
 /* ------------------------------------------------------------------ poll */
 async function tick() {
   let r;
@@ -1155,6 +1205,14 @@ async function tick() {
                              (s.golf.address_waits ? 'w' : '') + (s.golf.hole || '') + (s.golf.over ? 'over' : '')) : '') +
                   (s.clubhouse ? ('|c' + s.clubhouse.people.length + Math.ceil((s.clubhouse.tee_in || 0) / 5)) : '');
 
+
+  // Q-code bingo: this phone's card, repainted when a call or the result changes.
+  if (s.qbingo && s.qbingo.card) {
+    pollMs = POLL_FAST;
+    const qkey = 'qb' + s.qbingo.calls + (s.qbingo.over ? 'over' : '') + (s.qbingo.all_called ? 'all' : '') + (s.qbingo.winner || '');
+    if (shownRound !== qkey) { shownRound = qkey; paintBingo(s.qbingo); }
+    return;
+  }
 
   if (!round) {
     // A card that arrived after the waiting screen was painted - the host

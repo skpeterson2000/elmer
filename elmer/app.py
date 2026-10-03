@@ -3426,6 +3426,40 @@ def api_cw_flagging():
     return jsonify({"reading": cw.flagging(clean)})
 
 
+CW_QGAME_KEY = "cw.qgame"             # {code: {seen, right, run, missed_at}} - see cw.qgame_take
+
+
+@app.route("/api/cw/qgame")
+def api_cw_qgame():
+    """A round of the Q-code games: the codes drawn for it, weakest first in
+    the drawing, each with four meanings to choose from, and the record."""
+    connection = conn()
+    record = db.kv_get(connection, CW_QGAME_KEY, {}) or {}
+    try:
+        count = max(1, min(len(cw.Q_SIGNALS), int(request.args.get("count") or 10)))
+    except ValueError:
+        count = 10
+    rng = random.Random()
+    codes = cw.qgame_draw(record, rng, count)
+    return jsonify({"signals": cw.Q_SIGNALS, "record": record,
+                    "round": [{"code": c, "meaning": cw.Q_SIGNALS[c], "choices": cw.qgame_choices(c, rng)}
+                              for c in codes]})
+
+
+@app.route("/api/cw/qgame", methods=["POST"])
+def api_cw_qgame_answer():
+    """One answer in a Q-code game, counted into this profile's record."""
+    body = request.get_json(silent=True) or {}
+    code = str(body.get("code") or "")
+    if code not in cw.Q_SIGNALS:
+        return jsonify({"ok": False, "error": "not a Q signal ELMER knows"}), 400
+    connection = conn()
+    record = db.kv_get(connection, CW_QGAME_KEY, {}) or {}
+    cw.qgame_take(record, code, bool(body.get("right")))
+    db.kv_set(connection, CW_QGAME_KEY, record)
+    return jsonify({"ok": True, "stat": record[code]})
+
+
 @app.route("/api/cw/wins", methods=["POST"])
 def api_cw_wins():
     """What moved in this session, for the card at the end of it.
@@ -5233,6 +5267,44 @@ def api_party_round():
     return jsonify(room.state())
 
 
+@app.route("/api/party/qbingo/call", methods=["POST"])
+def api_party_qbingo_call():
+    """The table keys the next Q signal. The screen plays it from the state."""
+    room = _party_or_404()
+    code, why = room.qbingo_call()
+    if code is None:
+        return jsonify({"ok": False, "error": why}), 409
+    return jsonify({"ok": True, "qbingo": room.qbingo_view()})
+
+
+@app.route("/api/party/qbingo/mark", methods=["POST"])
+def api_party_qbingo_mark():
+    """A player marks, or unmarks, a square on their card."""
+    room = _party_or_404()
+    body = request.get_json(silent=True) or {}
+    try:
+        who = int(body.get("player"))
+    except (TypeError, ValueError):
+        abort(400, "need a player id")
+    ok, why = room.qbingo_mark(who, body.get("square"), body.get("on", True) is not False)
+    if not ok:
+        return jsonify({"ok": False, "error": why}), 409
+    return jsonify({"ok": True})
+
+
+@app.route("/api/party/qbingo/claim", methods=["POST"])
+def api_party_qbingo_claim():
+    """A player calls bingo; the call is checked against what was keyed."""
+    room = _party_or_404()
+    body = request.get_json(silent=True) or {}
+    try:
+        who = int(body.get("player"))
+    except (TypeError, ValueError):
+        abort(400, "need a player id")
+    won, words = room.qbingo_claim(who)
+    return jsonify({"ok": True, "won": won, "words": words})
+
+
 @app.route("/api/party/answer", methods=["POST"])
 def api_party_answer():
     """One answer, timed by the player's own clock."""
@@ -6040,6 +6112,28 @@ def _apply_mode(room, wanted, body):
     """Start the game asked for, with whoever is here. The mode route
     with people at the table; the first arrival's join with a standing
     game set before them."""
+    if wanted != party.QBINGO:
+        room.end_qbingo()
+    if wanted == party.QBINGO:
+        # Q-code bingo: a card of meanings on every phone, the table keying
+        # the codes. People only - see qbingo.py.
+        room.leave_clubhouse()
+        room.set_standing(None)
+        room.end_shootout()
+        room.end_cutthroat()
+        room.end_golf(how="the host started Q-code bingo")
+        room.end_baseball()
+        room.clear_bots()
+        try:
+            wpm = int(body.get("wpm") or 0) or None
+            every = int(body.get("every") or 0) or None
+        except (TypeError, ValueError):
+            wpm = every = None
+        started, why = room.begin_qbingo(wpm, every)
+        if started is None:
+            abort(409, why)
+        log.info("party: Q-code bingo started - %d players at %d wpm", len(started.cards), started.wpm)
+        return
     if wanted == party.SHOOTOUT:
         _not_this_tables_part()      # the hall's shootout is the hall's
         difficulty = str(body.get("difficulty") or _party_class()).lower()

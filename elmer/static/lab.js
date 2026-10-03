@@ -4283,10 +4283,20 @@ const recallAntenna = () => recall('lab.antenna', null);
                  kind: ANTENNA_KINDS.includes(askedKind) ? askedKind : '',
                  asClass: asClass || ''};
     // The station's antenna, when it is the one asked about (or none was):
-    // evaluated as it stands rather than suggested over.
+    // evaluated as it stands rather than suggested over. The Band Plan's
+    // button writes it just before it comes here, and sends the kind and
+    // height on the link too, which are used when nothing was kept.
     const st = stationAntenna();
-    const mine = st && (!ctx.kind || ctx.kind === st.kind) && labApplyStation(st);
-    if (mine) ctx.kind = st.kind;
+    let mine = st && (!ctx.kind || ctx.kind === st.kind) && labApplyStation(st);
+    if (!mine && ctx.kind) {
+      const h = parseFloat(q.get('h'));
+      mine = labApplyStation({kind: ctx.kind, height_ft: h > 0 ? h : undefined});
+    }
+    if (mine) ctx.kind = ctx.kind || st.kind;
+    // And the power it was being run at there.
+    const pw = parseFloat(q.get('pw'));
+    const pwBox = document.getElementById('an-pw');
+    if (pwBox && pw > 0 && pw <= 1500) pwBox.value = String(Math.round(pw));
     // The frequency asked about is the form's, whatever else is kept.
     setFrequency('an-f', ctx.mhz);
     rememberAntenna(ctx);

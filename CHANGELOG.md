@@ -5,6 +5,18 @@ which in this repository is written as a sentence about what changed for
 the person using it. `git log` has the rest. The build a unit runs is the
 short commit id on its dashboard and in every problem report.
 
+## 2026-10-03
+
+- The reach map shows a strong band as its own color at full intensity, and a weaker one as that color fading, instead of every band going white at its best.
+- Q-code bingo in the Gaming Center: the table keys a Q signal, every phone holds a card of meanings, four in a line wins - checked against what was keyed, with each code written on the table once the next is out.
+- The CW page has a **Q signals** tab with two games: Hear it, key it - a code by sound, its meaning from four; a meaning, and the code keyed back - and Matching cards. The codes you miss come round again.
+- The CW page's lists are wider: 23 Q signals, 9 prosigns with KA, the ITU's starting signal, and 60 abbreviations. VE, BK and KA keyed or heard on the page now decode as themselves.
+- The CW page answers Q-codes keyed by the operator: key QRV on the space bar, the paddles or a real key and the next lesson starts; QRT stops, QSM? repeats, QRS and QRQ change the pace, QSL checks the copy. The fist is read on its own timing, and a card shows what was heard and what it pressed.
+- The CW lamp's **Full screen** was a blank screen with nothing to send. It now says what it is and has **Send practice**, **Send again**, **Stop** and **Back**, following the group as it goes out and fading out of the lamp's way while it does.
+- The User's Guide caught up: what leaves the unit now lists the firmware check, the ground rating and the WSJT-X listener; the index finds the VNA, the spots, 6 m and the terminator; Tools and the band plan have a heading for each thing on the page instead of a few long blocks; and seven new and refreshed figures, every one taken from the running program by tools/guideshots.py so it can be taken again.
+- The Band Plan's **Set up an antenna for this** takes the antenna on its reach map to the Lab - its kind, height and power - instead of whichever antenna was chosen last somewhere else.
+- The Library's links to the Printouts shelf work; they pointed at an address that was never there.
+
 ## 2026-10-02
 
 - 6 m and 2 m have a reach map with no forecast on it - the ground, the night and the spots - since what opens them is not forecast; the spots are the evidence. The POTA page's 6 m and 2 m buttons open it.

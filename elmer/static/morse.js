@@ -202,8 +202,11 @@ const CODE = {
 };
 const FROM_CODE = {};
 Object.keys(CODE).forEach(c => { FROM_CODE[CODE[c]] = c; });
+// The same prosigns as cw.PROSIGNS, by code - so VE, BK and KA keyed or heard
+// decode as themselves rather than as an unknown.
 const PROSIGN_CODE = {'.-.-.': 'AR', '...-.-': 'SK', '-...-': 'BT',
-                      '-.--.': 'KN', '.-...': 'AS', '........': 'HH'};
+                      '-.--.': 'KN', '.-...': 'AS', '........': 'HH',
+                      '...-.': 'VE', '-...-.-': 'BK', '-.-.-': 'KA'};
 
 function codeToChar(code) {
   return FROM_CODE[code] || PROSIGN_CODE[code] || '?';

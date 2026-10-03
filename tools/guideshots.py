@@ -39,6 +39,9 @@ SHOTS = ROOT / "docs" / "screenshots" / "guide"
 # Which profile the figures are taken as. The first one, unless told
 # otherwise: a unit with several sends an unidentified browser to /who.
 USER = int(os.environ.get("GUIDESHOT_USER") or 1)
+# A figure marked "qth" - the reach map, band conditions, the Lab's hop -
+# shows a station that has one, and the first profile need not.
+REACH_USER = int(os.environ.get("GUIDESHOT_REACH_USER") or 2)
 
 
 # Each figure: where it goes, which page, what to crop to, and what to do to
@@ -76,9 +79,7 @@ FIGURES = [
      "setup": "document.querySelector('#cw-modes [data-mode=rating]').click()",
      "why": "The two numbers that move - the speed copied and the speed sent."},
     # -- The band plan: privileges, which is the other wall of prose.
-    {"name": "bandplan-strip", "chapter": "bandplan", "url": "/bandplan",
-     "where": ".bp-band", "settle": 3.0,
-     "why": "One band's strip: the segments, the modes, and where this class may go."},
+    # (The band's strip is a drawn figure now - tools/guidefigures.py, band-strip.)
     # -- Studying: the drill, and what an explanation looks like.
     {"name": "study-explain", "chapter": "study", "url": "/study/tech2026",
      "where": ".panel", "settle": 3.0,
@@ -87,6 +88,46 @@ FIGURES = [
     # shelf. Take it on a unit with at least one book on each - the
     # operator's own manuals are in this picture, so a scratch ELMER_STATE
     # is the place to take it.
+    # -- Band conditions and the Lab: cropped to what the guide talks about,
+    # where they used to be the whole window.
+    {"name": "propagation", "chapter": "propagation", "url": "/propagation", "qth": True,
+     "region": ["#p-verdict", "#p-stats", "#p-stats + .grid"], "settle": 5.0,
+     "why": "The verdict, the numbers and the wall chart."},
+    {"name": "lab", "chapter": "lab", "url": "/lab", "qth": True,
+     "where": "#pane-skip", "settle": 4.0,
+     "why": "The ionospheric hop: the layer, the rays that come back and the skip zone."},
+    # -- The reach map. Needs a profile with a QTH; GUIDESHOT_REACH_USER
+    # says which (the default is 2, the bench unit's). The parks on it are
+    # the real POTA feed, sampled when the server starts - see serve().
+    {"name": "reach", "chapter": "bandplan", "url": "/bandplan#20m", "qth": True,
+     "region": ["#bp-reach > div:first-child", "#bp-reach-stage", "#bp-spots-line"], "settle": 3.0,
+     "setup": "for (let i = 0; i < 90 && !(window.bpReachFor && !bpReachFor.spots_only && bpPlace); i++)"
+              " await new Promise(r => setTimeout(r, 500)); await new Promise(r => setTimeout(r, 2500))",
+     "why": "Where 20 m reaches from here, now, with the parks on the air."},
+    {"name": "reach-6m", "chapter": "bandplan", "url": "/bandplan#6m", "qth": True,
+     "region": ["#bp-reach > div:first-child", "#bp-reach-stage", "#bp-reach-spotsonly"], "settle": 3.0,
+     "setup": "for (let i = 0; i < 60 && !(window.bpReachFor && bpReachFor.spots_only && bpPlace); i++)"
+              " await new Promise(r => setTimeout(r, 500)); await new Promise(r => setTimeout(r, 2500))",
+     "why": "6 m: the map with no forecast, the spots and why."},
+    # -- Tools: the VNA's two charts, the calibration drill half done, and
+    # the terminator's calculator.
+    {"name": "tools-vna", "chapter": "tools", "url": "/tools", "where": "#gs-vna", "settle": 3.0,
+     "setup": "for (let i = 0; i < 20 && !window.vnLast; i++) await new Promise(r => setTimeout(r, 300));"
+              " document.getElementById('vn-chart').parentElement.id = 'gs-vna'",
+     "why": "The SWR chart and the Smith chart of the same sweep, side by side."},
+    {"name": "tools-calibrate", "chapter": "tools", "url": "/tools", "where": "#gs-cal", "settle": 2.0,
+     "setup": "vnCtlEnable(true); vnCalMarks({has: false, measured: ['open', 'short']});"
+              " document.querySelector('[data-vna=cal-step][data-value=open]').parentElement.id = 'gs-cal'",
+     "why": "A V2 calibration in progress: OPEN and SHORT measured, LOAD and DONE to go."},
+    {"name": "tools-terminator", "chapter": "tools", "url": "/tools", "where": "#gs-term", "settle": 2.0,
+     "setup": "document.querySelector('[data-tab=meter]').click();"
+              " document.getElementById('bt-out').closest('.bench-card').querySelector('.bench-calc').id = 'gs-term'",
+     "why": "The terminator calculator: banks of identical resistors for 600 ohms at 100 W."},
+    # -- Parks and summits: who is on the air now, from the real feed.
+    {"name": "pota-onair", "chapter": "activations", "url": "/activations", "where": "#ac-live", "settle": 3.0,
+     "setup": "for (let i = 0; i < 20 && !document.querySelector('#ac-live-bands a, #ac-live-bands span');"
+              " i++) await new Promise(r => setTimeout(r, 300))",
+     "why": "On the air now: the parks being activated, by band, each a way into the map."},
     {"name": "library", "chapter": "library", "url": "/library",
      "where": "#lib-catalogue", "settle": 4.0,
      "why": "The card catalogue: every book, where it is, and whether it may be taken away."},
@@ -99,6 +140,10 @@ def serve(port):
         [sys.executable, "-c",
          "import sys; sys.path.insert(0, %r)\n"
          "from elmer.app import app\n"
+         # The parks in the figures are the real feed's, taken once here, as
+         # the running unit takes it every twenty minutes - never made up.
+         "from elmer import spotlog\n"
+         "spotlog.sample()\n"
          "app.run(host='127.0.0.1', port=%d, threaded=True, use_reloader=False)"
          % (str(ROOT), port)],
         env=dict(os.environ), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -117,6 +162,20 @@ def take(figure, port, browser):
     out = SHOTS / (figure["name"] + ".png")
     url = "http://127.0.0.1:%d%s" % (port, figure["url"])
     setup = figure.get("setup") or ""
+    where = figure.get("where")
+    if figure.get("region"):
+        # Several elements cropped as one: a transparent box laid over all of
+        # them, and the shutter cropped to the box. Nothing on the page moves.
+        setup += ("; await new Promise(r => setTimeout(r, 300));"
+                  " const gsEls = %r.map(q => document.querySelector(q)).filter(Boolean);"
+                  " if (gsEls.length) { const rs = gsEls.map(e => e.getBoundingClientRect());"
+                  " const box = document.createElement('div'); box.id = 'gs-region';"
+                  " const t = Math.min(...rs.map(r => r.top)) + scrollY, l = Math.min(...rs.map(r => r.left)) + scrollX;"
+                  " box.style.cssText = 'position:absolute;pointer-events:none;top:' + t + 'px;left:' + l +"
+                  " 'px;width:' + (Math.max(...rs.map(r => r.right)) + scrollX - l) + 'px;height:' +"
+                  " (Math.max(...rs.map(r => r.bottom)) + scrollY - t) + 'px';"
+                  " document.body.appendChild(box); }") % (figure["region"],)
+        where = "#gs-region"
     # The setup runs, then the page is given a moment to settle into it before
     # the shutter. Returning the selector's own size tells us whether there was
     # anything there to photograph.
@@ -128,14 +187,14 @@ def take(figure, port, browser):
           " %s; await new Promise(r => setTimeout(r, 900));"
           " const el = document.querySelector(%r);"
           " return el ? Math.round(el.getBoundingClientRect().width) : 0; })()"
-          % (setup, figure["where"]))
+          % (setup, where))
     try:
         width = browser.evaluate(url, js, width=1280, height=900,
                                  settle=figure.get("settle", 2.5),
-                                 out=str(out), clip=figure["where"],
+                                 out=str(out), clip=where,
                                  # Say who we are, or a unit with two profiles
                                  # answers /who and the figure is of that.
-                                 cookies={"elmer_user": str(USER)})
+                                 cookies={"elmer_user": str(REACH_USER if figure.get("qth") else USER)})
     except Exception as exc:
         return "failed  %-18s %s" % (figure["name"], exc)
     if isinstance(width, str):
@@ -151,7 +210,7 @@ def take(figure, port, browser):
         out.unlink(missing_ok=True)
         return ("MISSING %-18s nothing matched %s on %s - hidden, or the page "
                 "has moved (no file written)"
-                % (figure["name"], figure["where"], figure["url"]))
+                % (figure["name"], where, figure["url"]))
     size = out.stat().st_size if out.is_file() else 0
     return "ok      %-18s %s  (%d px wide, %d KB)" % (
         figure["name"], figure["url"], width, size // 1024)

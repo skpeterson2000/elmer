@@ -2,7 +2,8 @@
    lives. The table shows the chosen one under the tiles; a phone shows
    them all, because the friend who was invited to play baseball may want
    to know what the golf is. One file, so the two never disagree. */
-const GAME_NAMES = {tournament: 'Tournament', shootout: 'Shootout', cutthroat: 'CutThroat', golf: 'Golf', baseball: 'CW Baseball'};
+const GAME_NAMES = {tournament: 'Tournament', shootout: 'Shootout', cutthroat: 'CutThroat', golf: 'Golf', baseball: 'CW Baseball',
+                    qbingo: 'Q-code bingo'};
 const GAME_ABOUT = {
   tournament: {how: 'Rounds of questions to the whole table at once, points for a right answer and more for a quick one, a leaderboard. The classic, and what an empty table plays on its own fifteen seconds after somebody sits down.',
                progress: 'Every answer counts for the player who gave it, on this unit\'s scoreboard and in their own study record.'},
@@ -12,6 +13,8 @@ const GAME_ABOUT = {
               progress: 'Nothing saved between games; the answers still count for the players\' study.'},
   golf: {how: 'The slow game. A real course, a question a stroke, one player at a time, no clock. Set up the shot - club, shape, spin - then choose your answer and swing at the meter. Right, and the ball does what you set up, as far as your swing sent it; wrong, and it does it too much - the fade becomes a slice. A tee time lets friends join before the group departs.',
          progress: 'The record board in the pro shop keeps every regular\'s rounds, best to par and aces on this unit.'},
+  qbingo: {how: 'The table keys a Q signal by sound alone - nothing written - and every phone holds a card of sixteen meanings. Hear QRS, mark "send slower". A row, a column or a diagonal of four, every one of them keyed, and call Bingo. The code just keyed is written on the table once the next one is out, so the room listens first and learns after.',
+            progress: 'Nothing kept but the win; it is the Q signals that stay.'},
   baseball: {how: 'The machine pitches Morse. Batting is copying: type what you heard and swing - clean is a hit, sized by the pitch. Fielding is sending: key the ball back, clean and in time, for the out. Innings, runs, and the late innings come faster; the last inning pitches a contact.',
              progress: 'The pitching starts at the operator\'s CW rating from the CW page, which the ladder there keeps.'},
 };

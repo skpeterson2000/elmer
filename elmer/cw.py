@@ -12,6 +12,7 @@ later; learning the real sound with more thinking time between does not.
 import json
 import random
 import re
+import time
 
 MORSE = {
     "A": ".-", "B": "-...", "C": "-.-.", "D": "-..", "E": ".", "F": "..-.",
@@ -28,6 +29,10 @@ MORSE = {
 REVERSE = {code: char for char, code in MORSE.items()}
 
 # Sent as a single character with no gap inside them.
+# Sent as a single character with no gap inside them. The procedure signals
+# are Recommendation ITU-R M.1677-1, International Morse code (10/2009):
+# understood, error, the cross (AR), wait, end of work (SK) and the starting
+# signal (KA). KN and BK are the amateur service's own, in use everywhere.
 PROSIGNS = {
     "AR": (".-.-.", "end of message"),
     "SK": ("...-.-", "end of contact"),
@@ -37,13 +42,21 @@ PROSIGNS = {
     "BK": ("-...-.-", "break in"),
     "VE": ("...-.", "understood"),
     "HH": ("........", "error, start that word again"),
+    "KA": ("-.-.-", "starting signal - here begins a message"),
 }
 
 # The Koch order: hardest and most distinctive first, so the ear learns to
 # discriminate from the start rather than easing in on E and T.
 KOCH_ORDER = list("KMRSUAPTLOWI.NJEF0Y,VG5/Q9ZH38B?427C1D6X")
 
+# The Q signals an amateur hears on CW, as amateurs use them - each can be
+# sent as a statement or, with a question mark, as a question. The codes are
+# the ITU's (Recommendation ITU-R M.1172); the meanings are the amateur
+# service's working ones, in ELMER's words.
 Q_SIGNALS = {
+    "QRA": "the name of your station",
+    "QRG": "your exact frequency",
+    "QRK": "how readable you are",
     "QRL": "is this frequency busy?",
     "QRM": "interference from other stations",
     "QRN": "atmospheric noise, static",
@@ -57,20 +70,41 @@ Q_SIGNALS = {
     "QRX": "wait, stand by",
     "QRZ": "who is calling me?",
     "QSB": "fading",
+    "QSK": "break-in - I can hear you between my own signals",
     "QSL": "acknowledged, confirmed",
     "QSO": "a contact",
+    "QSP": "relay a message",
     "QSY": "change frequency",
     "QTH": "location",
     "QTR": "time",
 }
 
+# The abbreviations of an ordinary CW contact - what a newcomer actually
+# hears on the bands - in ELMER's own words. Checked against the lists
+# operators keep, not copied from any of them.
 ABBREVIATIONS = {
-    "CQ": "calling any station", "DE": "from", "K": "over, go ahead",
-    "R": "received", "RST": "signal report", "TU": "thank you",
-    "73": "best regards", "88": "love and kisses", "OM": "old man",
-    "YL": "young lady", "ES": "and", "HI": "laughter", "PSE": "please",
-    "TNX": "thanks", "UR": "your", "WX": "weather", "AGN": "again",
-    "ANT": "antenna", "RIG": "station equipment", "FB": "fine business",
+    # the shape of a contact
+    "CQ": "calling any station", "DE": "from, this is", "K": "over, go ahead",
+    "R": "received", "C": "yes, correct", "N": "no", "NIL": "nothing, I have nothing for you",
+    "RST": "signal report", "UR": "your, you are", "HR": "here", "HV": "have",
+    "ES": "and", "FER": "for", "ABT": "about", "AGN": "again", "PSE": "please",
+    "RPT": "repeat, or report", "CFM": "confirm", "NR": "number",
+    "AA": "all after", "AB": "all before", "SRI": "sorry", "SN": "soon",
+    # greetings and the people
+    "GM": "good morning", "GA": "good afternoon, or go ahead", "GE": "good evening",
+    "GN": "good night", "OM": "old man - any male operator", "YL": "young lady - any female operator",
+    "XYL": "wife", "OB": "old boy", "DR": "dear", "OP": "operator, or the operator's name",
+    "HW": "how - how do you copy?", "FB": "fine business - excellent", "VY": "very",
+    "GUD": "good", "HI": "laughter", "TNX": "thanks", "TKS": "thanks", "TU": "thank you",
+    # the station
+    "ANT": "antenna", "RIG": "station equipment", "PWR": "power", "WX": "weather",
+    "TX": "transmitter", "RX": "receiver", "XCVR": "transceiver", "SIG": "signal",
+    "MSG": "message", "WKD": "worked", "TEST": "a contest call",
+    # signing off
+    "CUL": "see you later", "CUAGN": "see you again", "GL": "good luck",
+    "CL": "closing down", "73": "best regards", "88": "love and kisses",
+    "72": "best regards, among QRP operators",
+    "99": "go away - an insult, not a sign-off; know it to recognise it, never to send it",
 }
 
 CALL_PREFIXES = ["W", "K", "N", "AA", "KB", "KC", "KD", "KE", "KI", "KJ",
@@ -745,6 +779,7 @@ def passes(the_plan):
     """
     each = budget(the_plan)
     return max(PASSES_FEWEST, min(PASSES_MOST, int(round(DAY_TARGET / float(each)))))
+
 
 # What the parts cost, for fitting them to the clock.
 MEET_SECONDS = 45              # hearing a new character a few times
@@ -1517,3 +1552,73 @@ def speed_above(wpm):
         if rung["from"] > here["to"]:
             return rung
     return None
+
+
+# ------------------------------------------------------------ the Q-code games
+#
+# "Hear it, key it" and the matching cards draw on a small record kept per
+# profile: for each Q signal, how often it was met, how often it was right,
+# and when it was last missed. A code missed is drawn more, and soon; a code
+# answered right several times running is drawn less. It is the same idea as
+# the character record - the weak ones come round - kept apart because a Q
+# signal is a meaning to recall, not a sound to copy.
+
+QGAME_SOLID = 3              # right this many times running, and it steps back
+
+
+def qgame_weight(stat, now):
+    """How strongly a code should be drawn: new and missed codes most."""
+    if not stat or not stat.get("seen"):
+        return 3.0                                   # never met: worth meeting
+    run = stat.get("run", 0)
+    weight = 1.0 + 2.0 * (1 - stat.get("right", 0) / stat["seen"])
+    missed = stat.get("missed_at")
+    if missed and now - missed < 600:                # missed in the last ten minutes: again, soon
+        weight += 3.0
+    if run >= QGAME_SOLID:
+        weight /= 1 + (run - QGAME_SOLID + 1)
+    return weight
+
+
+def qgame_draw(record, rng, count=1, now=None, pool=None):
+    """Draw `count` distinct Q signals, weighted by the record."""
+    now = time.time() if now is None else now
+    codes = list(pool or Q_SIGNALS)
+    out = []
+    while codes and len(out) < count:
+        weights = [qgame_weight((record or {}).get(c), now) for c in codes]
+        pick = rng.choices(codes, weights=weights)[0]
+        out.append(pick)
+        codes.remove(pick)
+    return out
+
+
+def qgame_choices(code, rng, count=4):
+    """The code's own meaning and `count - 1` others, shuffled."""
+    others = rng.sample([c for c in Q_SIGNALS if c != code], count - 1)
+    picks = others + [code]
+    rng.shuffle(picks)
+    return [{"code": c, "meaning": Q_SIGNALS[c]} for c in picks]
+
+
+def qgame_take(record, code, right, now=None):
+    """Count one answer into the record. Returns the record."""
+    if code not in Q_SIGNALS:
+        return record
+    now = time.time() if now is None else now
+    stat = record.setdefault(code, {"seen": 0, "right": 0, "run": 0})
+    stat["seen"] += 1
+    if right:
+        stat["right"] += 1
+        stat["run"] = stat.get("run", 0) + 1
+    else:
+        stat["run"] = 0
+        stat["missed_at"] = now
+    return record
+
+
+def qgame_keyed_matches(code, heard):
+    """Whether a keyed answer is the code: as sent, or asked as a question,
+    with nothing else keyed but the odd stray element at either end."""
+    heard = (heard or "").replace(" ", "").upper().strip("\u00b7")
+    return heard in (code, code + "?") or (code.endswith("?") and heard == code[:-1])

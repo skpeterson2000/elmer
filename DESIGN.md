@@ -604,8 +604,11 @@ because they carry very different authority:
   kind - a layer lying over the ground, thin and dense, as on a weather
   map - not its color. A white overlay made every band look the same, and
   the band's color is what tells one band from another everywhere in ELMER.
-  So the overlay is the band's own color, paling toward white only at the
-  very top as the plain map's ramp does, and the isolines are a dark shade
+  So the overlay is the band's own color - and later (2026-10-03) not even
+  the top of the scale pales to white: every band's best looking white-hot
+  made them alike again, so strength became intensity, the band's color at
+  its most saturated at the best and the same color fading toward gray and
+  the background below it (`vividRGB`, `fadedRGB` in bandplan.js), and the isolines are a dark shade
   of it so they show on the overlay and on the ground alike.
 
   It was still a different picture of the band from the plain map's, and
@@ -1512,6 +1515,14 @@ The V and the rhombic are independent wires, and the travelling-wave sum works t
 ### A dipole's feed over real ground
 
 The feed resistance against height was the textbook's: the wire's 73 ohms less its mutual resistance with a perfect mirror image of itself, which falls toward nothing as the wire comes down. Scott challenged the 0 ohms at the foot of the plot, rightly - over real soil the reflection is partial and turned, and the soil absorbs power, which shows at the feed as resistance. Now the image is weighted by the ground's own reflection at normal incidence (`patterns.fresnel`, average soil, the band's frequency): Z = Z11 + Gamma Z12(2h), with the mutual reactance (Kraus, a hand-written sine integral beside the cosine one) because a complex Gamma mixes it in. Gamma = -1 gives the textbook back, and the textbook is still drawn, dotted. What the image method leaves out is the near-field soil loss, which below about a tenth of a wave adds more resistance still; the plot says to read it there as a floor. The heights table, the SWR, the match-height advice and the sheet all read the real-ground curve, so the page cannot print two match heights (`tests/test_antenna_advice.py`, `test_v_feedpoint.py`, `test_reachable_height.py`).
+
+### The Q signals, and three games for them
+
+The CW page's prosigns, Q signals and abbreviations were short - 8, 18 and 20 - and an operator pointed at a web list with about fifty abbreviations as more complete, which on abbreviations it was. That page names no sources and reserves all rights, so nothing was copied from it; it served as a checklist. The procedure signals were checked against Recommendation ITU-R M.1677-1, *International Morse code* (10/2009) - understood, error, the cross, wait, end of work, and the starting signal KA, which was missing - and the Q signals are the ITU's (ITU-R M.1172) with the amateur service's working meanings, written here. The abbreviations are the ordinary contact's, in ELMER's words. 77 ("long-distance friendship") was left out because no reference could be found for it; 99 is in, with its meaning saying it is an insult. The page's own prosign table in `morse.js` had lagged `cw.PROSIGNS` - VE and BK were missing - and now carries all nine.
+
+Two solo games on the CW page and one for the table. The solo record (`cw.qgame_*`, kept in the profile's kv as `cw.qgame`) is small on purpose: seen, right, the current run, and when a code was last missed. A code never met, or missed in the last ten minutes, is drawn more; one right three times running steps back. *Hear it, key it* alternates recognition and recall, and the recall half is keyed: the keyed-Q listener hands what it decoded to the game (`qhearClaim`) instead of pressing a button, and listens then even with answering Q-codes switched off, because keying is the game. The matching cards keep no record - a memory game measures memory.
+
+Q-code bingo (`qbingo.py`) is a table game, people only, and for one table rather than a hall. The calls are drawn at the start; the table plays each from the state (`sound`) and is never sent the code as text until the next one is out. A claim is checked against what was keyed - every square on the line marked and every one called - and a claim that does not stand names the squares not yet keyed, without penalty. Running out of calls does not end the game, which the first browser test caught: with every code keyed the Bingo button had gone, and nobody could call the last line. `tests/test_qbingo.py` holds the engine and the room; `tests/test_qbingo_pages.py` plays a game through the table screen and a phone against a running unit.
 
 ### Spots on the reach map
 

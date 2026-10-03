@@ -439,6 +439,11 @@ table.res.card td.k, table.res.card tr:first-child td, table.res.card tr:nth-chi
             <b>Shootout</b>
             <span>One picks the subject; miss what they made and take a letter. E-L-M-E-R and you are out.</span>
           </button>
+          <button class="gc-tile" id="qbingo" title="The table keys a Q signal; every phone holds a card of meanings. Hear it, mark it - four in a line and call Bingo.">
+            <span class="gc-glyph mono" style="font-size:1.1em;letter-spacing:.05em">QRV</span>
+            <b>Q-code bingo</b>
+            <span>The table keys a Q signal; every phone has a card of meanings. Hear it, mark it - four in a line, call Bingo.</span>
+          </button>
           <button class="gc-tile" id="cutthroat" title="Musical chairs: miss and you are out, every correct answer keeps its seat. Two left get fifteen questions; level after that, sudden death.">
             <span class="gc-glyph">&#128481;</span>
             <b>CutThroat</b>
@@ -1291,6 +1296,15 @@ async function tick() {
       }
       return;
     }
+    const qb = s.qbingo;
+    if (qb) {
+      chip.textContent = qb.over ? 'Q-code bingo over' : `Q-code bingo · call ${qb.calls} of ${qb.of}`;
+      qbPlay(qb);
+      qbAuto(qb);
+      const key = 'qb' + qb.calls + (qb.over ? 'over' : '') + (qb.all_called ? 'all' : '') + (qb.winner || '') + qb.players;
+      if (painted !== key) { painted = key; stage.innerHTML = qbStage(qb); }
+      return;
+    }
     const ct = s.cutthroat;
     if (ct) {
       const key = 'cut' + ct.rounds + ct.phase + (ct.over ? 'over' : '');
@@ -1630,6 +1644,65 @@ document.getElementById('endtable').addEventListener('click', async () => {
   location.href = '/';
 });
 
+/* ------------------------------------------------------ Q-code bingo */
+/* The table keys each call through its speaker - nothing written while it
+   sounds - and writes it, with its meaning, once the next is out. It calls
+   on a press, or by itself every so many seconds. */
+let qbPlayed = 0, qbLastCall = 0, qbAutoOn = true;
+function qbSound(qb) {
+  if (!qb.sound || !ballPlayer) return;
+  try { ballPlayer.send(qb.sound.groups, qb.sound.timing, null, () => {}); } catch (e) { /* no audio: the room still has the cards */ }
+}
+function qbPlay(qb) {
+  if (qb.sound && qb.sound.n !== qbPlayed) { qbPlayed = qb.sound.n; qbLastCall = Date.now(); qbSound(qb); }
+}
+async function qbCall() {
+  qbLastCall = Date.now();
+  await api('/api/party/qbingo/call', {});
+  tick();
+}
+function qbAuto(qb) {
+  if (!qbAutoOn || qb.over || qb.all_called || !qb.players) return;
+  if (!qb.calls || Date.now() - qbLastCall >= qb.every_s * 1000) {
+    if (!qb.calls && !qbLastCall) { qbLastCall = Date.now() - (qb.every_s - 6) * 1000; return; }   // a moment to settle in
+    qbCall();
+  }
+}
+function qbStage(qb) {
+  const earlier = (qb.earlier || []).slice().reverse();
+  const won = qb.winner !== null && qb.winner !== undefined;
+  const head = won
+    ? `<h2 style="margin:.2rem 0 .4rem">Bingo! <b>${esc(qb.winner_name || 'Somebody')}</b></h2>
+       <p class="narrator">${(qb.winning || []).map(w => `<b class="mono">${esc(w.code)}</b> ${esc(w.meaning)}`).join(' &middot; ')}</p>`
+    : qb.all_called ? `<h2 style="margin:.2rem 0 .4rem">Every Q signal has been keyed</h2>
+       <p class="hint">Check your cards - any line of four you have marked right is a Bingo. Call it on your phone.</p>`
+    : `<h2 style="margin:.2rem 0 .4rem">${qb.calls ? 'Listen - which Q signal was that?' : 'Cards are on the phones. The first call comes in a moment.'}</h2>
+       <p class="hint">Mark its meaning on your card. Four in a line - a row, a column or a diagonal - and call Bingo on your phone.</p>`;
+  const controls = won || qb.all_called ? '' :
+    `<div class="row" style="gap:.5rem;align-items:center;flex-wrap:wrap;margin:.4rem 0 .8rem">
+       <button class="btn primary" type="button" data-qb="call">Key the next code</button>
+       <button class="btn" type="button" data-qb="again"${qb.calls ? '' : ' disabled'}>Again</button>
+       <label class="hint" style="display:inline-flex;align-items:center;gap:.35rem;margin:0"><input type="checkbox" data-qb="auto"${qbAutoOn ? ' checked' : ''}> a new code every ${qb.every_s} s</label>
+       <span class="hint">${qb.wpm} wpm &middot; ${qb.players} card${qb.players === 1 ? '' : 's'} out</span>
+     </div>`;
+  const last = qb.last ? `<p class="hint">The last one keyed was <b class="mono">${esc(qb.last.code)}</b> - ${esc(qb.last.meaning)}.</p>` : '';
+  const list = earlier.length
+    ? `<div class="chip">Keyed so far</div><table class="res" style="margin:.3rem 0">${earlier.map(c =>
+        `<tr><td class="ms mono">${esc(c.code)}</td><td>${esc(c.meaning)}</td></tr>`).join('')}</table>`
+    : '';
+  return `<div style="text-align:left">${head}${controls}${last}${list}</div>`;
+}
+document.getElementById('stage').addEventListener('click', e => {
+  const b = e.target.closest('[data-qb]');
+  if (!b || !lastTableState || !lastTableState.qbingo) return;
+  if (b.dataset.qb === 'call') qbCall();
+  if (b.dataset.qb === 'again') qbSound(lastTableState.qbingo);
+});
+document.getElementById('stage').addEventListener('change', e => {
+  const b = e.target.closest('[data-qb="auto"]');
+  if (b) { qbAutoOn = b.checked; qbLastCall = Date.now(); }
+});
+
 /* ---------------------------------------------------------- CW Baseball */
 /* The machine pitches code through this screen's speaker; the batting side
    copies it, the fielding side keys it back. The diamond shows the runners,
@@ -1895,7 +1968,8 @@ async function paintAbout(mode) {
 }
 function markChosen(s) {
   const mode = (s.standing && s.standing.mode) || (s.clubhouse ? 'golf' : (s.baseball ? 'baseball' : s.mode)) || 'tournament';
-  const tiles = {tournament: '#tourney', shootout: '#shootout', cutthroat: '#cutthroat', golf: '#golf', baseball: '#baseball'};
+  const tiles = {tournament: '#tourney', shootout: '#shootout', cutthroat: '#cutthroat', golf: '#golf', baseball: '#baseball',
+                 qbingo: '#qbingo'};
   document.querySelectorAll('.gc-tile.chosen, .gc-golf.chosen').forEach(el => el.classList.remove('chosen'));
   const el = document.querySelector(tiles[mode] || '#tourney');
   if (!el) return;
@@ -1960,6 +2034,19 @@ ballBtn.addEventListener('click', async () => {
     level: document.getElementById('bot-level') ? document.getElementById('bot-level').value : null});
   ballBtn.disabled = false;
   tick();
+});
+/* Q-code bingo: a card of meanings on every phone, the codes keyed here. */
+const qbBtn = document.getElementById('qbingo');
+qbBtn.addEventListener('click', async () => {
+  clearAsk();
+  qbBtn.disabled = true;
+  const r = await api('/api/party/mode', {mode: 'qbingo'});
+  qbBtn.disabled = false;
+  if (r && r.status === 409) {
+    const box = document.getElementById('gc-status');
+    if (box) box.textContent = (r.data && r.data.description) || 'Q-code bingo needs somebody at the table';
+  }
+  autoTick(); tick();
 });
 const cutBtn = document.getElementById('cutthroat');
 cutBtn.addEventListener('click', async () => {
@@ -2043,14 +2130,18 @@ function autoTick() {
   const a = r.data && r.data.auto;
   const on = !!(a && a.running);
   const club = lastTableState && lastTableState.clubhouse;
-  stopt.hidden = !on && !club;
+  // Q-code bingo runs on the table's own calls, not the tournament's clock.
+  const bingo = lastTableState && lastTableState.qbingo && !lastTableState.qbingo.over;
+  stopt.hidden = !on && !club && !bingo;
   // While a game runs - or a tee time waits - the tiles stand down; the readout says which.
-  document.querySelector('.gc-tiles').hidden = on || !!club;
+  document.querySelector('.gc-tiles').hidden = on || !!club || !!bingo;
   const status = document.getElementById('gc-status');
-  const modeName = {tournament: 'Tournament', shootout: 'Shootout', cutthroat: 'CutThroat', golf: 'Golf', baseball: 'CW Baseball'};
+  const modeName = {tournament: 'Tournament', shootout: 'Shootout', cutthroat: 'CutThroat', golf: 'Golf', baseball: 'CW Baseball',
+                    qbingo: 'Q-code bingo'};
   const standing = lastTableState && lastTableState.standing;
   const ball = lastTableState && lastTableState.baseball && !lastTableState.baseball.over;
   status.textContent = on ? `${modeName[r.data.mode] || r.data.mode || 'game'} · in play`
+                          : bingo ? 'Q-code bingo · in play'
                           : ball ? 'CW Baseball · in play'
                           : club ? `Golf · tee time in ${clockWords(club.tee_in)}`
                           : standing ? `${modeName[standing.mode] || standing.mode} · set, waiting for the first arrival`

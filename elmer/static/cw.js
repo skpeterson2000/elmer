@@ -89,17 +89,49 @@ function bindSetting(id, key, fmt) {
 })();
 
 /* Full screen: the lamp as big as the screen, for copying across a room or
-   for a phone held up as a signal lamp. Any tap or key brings it back. */
+   for a phone held up as a signal lamp. It used to be the bare lamp, which
+   is dark until something is sent - a black screen with the browser's own
+   "Esc to exit" on it and no way to send anything. So full screen takes the
+   lamp's stage, with a bar along the bottom that says what it is and sends
+   a practice group: the same text, the same record, as Copy practice, where
+   the copy is typed and checked afterwards. */
 (function lampControls() {
   const full = document.getElementById('cw-lamp-full');
   const lamp = document.getElementById('cw-lamp');
+  const stage = document.getElementById('cw-lamp-stage') || lamp;
   if (!full || !lamp) return;
+  const exit = () => { if (document.fullscreenElement && document.exitFullscreen) document.exitFullscreen(); };
   full.addEventListener('click', () => {
-    const go = lamp.requestFullscreen || lamp.webkitRequestFullscreen;
-    if (go) go.call(lamp).catch(() => { /* refused: the lamp stays where it is */ });
+    const go = stage.requestFullscreen || stage.webkitRequestFullscreen;
+    if (go) go.call(stage).catch(() => { /* refused: the lamp stays where it is */ });
   });
-  lamp.addEventListener('click', () => {
-    if (document.fullscreenElement && document.exitFullscreen) document.exitFullscreen();
+  lamp.addEventListener('click', exit);
+  const btn = id => document.getElementById(id);
+  if (btn('cw-lamp-exit')) btn('cw-lamp-exit').addEventListener('click', exit);
+  if (btn('cw-lamp-send')) btn('cw-lamp-send').addEventListener('click', () => sendPractice(false));
+  if (btn('cw-lamp-again')) btn('cw-lamp-again').addEventListener('click', () => sendPractice(true));
+  if (btn('cw-lamp-stop')) btn('cw-lamp-stop').addEventListener('click', () => btn('cw-stop').click());
+  /* The bar follows the practice: what it is doing, in Copy practice's own
+     words, and the buttons that fit - while the screen is full. */
+  let watch = null;
+  const follow = () => {
+    const words = btn('cw-lamp-words'), status = btn('cw-copy-status');
+    const busy = typeof sending !== 'undefined' && sending;
+    stage.classList.toggle('sending', busy && /sending/.test(status ? status.textContent : ''));
+    btn('cw-lamp-send').hidden = busy;
+    btn('cw-lamp-stop').hidden = !busy;
+    btn('cw-lamp-again').hidden = busy || !currentData;
+    if (words && status && status.textContent) {
+      words.textContent = /type what you heard/.test(status.textContent)
+        ? 'Sent. Copied it? Press Back and type it in Copy practice to check - or send it again.'
+        : status.textContent;
+    }
+  };
+  document.addEventListener('fullscreenchange', () => {
+    const mine = document.fullscreenElement === stage;
+    clearInterval(watch);
+    if (mine) { follow(); watch = setInterval(follow, 150); }
+    else stage.classList.remove('sending');
   });
 
   /* The phone's own flashlight, following the lamp - where the browser lets
@@ -847,6 +879,11 @@ function countdown(status) {
     const onKey = e => {
       if (e.metaKey || e.ctrlKey || e.altKey ||
           ['Shift', 'Control', 'Alt', 'Meta', 'Tab'].includes(e.key)) return;
+      /* The CW key itself is left to the key, while the page answers keyed
+         Q-codes: swallowing it here cost the first element of a QRT keyed
+         to stop the send, and the rest read as something else. */
+      if (qhearHere() && (keyerMode === 'straight' ? e.code === 'Space'
+                          : e.code === settings.keyDit || e.code === settings.keyDah)) return;
       e.preventDefault();
       e.stopImmediatePropagation();
       finish(true);
@@ -1250,6 +1287,7 @@ const KEY_BLURB = {
 let keyDown = false, keyDownAt = 0, lastUpAt = 0, keyIdle = null;
 
 function keyStart() {
+  if (keyerMode === 'straight' && qhearHere()) { qhearDown(); return; }
   if (keyDown || keyerMode !== 'straight') return;
   keyDown = true;
   const now = performance.now();
@@ -1261,6 +1299,7 @@ function keyStart() {
   if (!keyLive) keyLive = requestAnimationFrame(liveKey);
 }
 function keyEnd() {
+  if (qhear.down) { qhearUp(); return; }
   if (!keyDown) return;
   keyDown = false;
   const now = performance.now();
@@ -1493,7 +1532,14 @@ if (paddle) {
 }
 
 document.addEventListener('keydown', e => {
-  if (isTyping(e) || document.getElementById('cw-key').hidden || e.repeat) return;
+  if (isTyping(e) || e.repeat) return;
+  if (document.getElementById('cw-key').hidden && !qhearHere()) return;
+  if (!keyer.running) {
+    // The paddles feed the practice decoder on Your sending, and the
+    // Q-code listener everywhere else.
+    const want = qhearHere() ? qhearRecorder : keyDecoder;
+    if (keyer.decoder !== want) { keyer.decoder = want; keyer.prevEnd = null; }
+  }
   if (keyerMode === 'straight') {
     if (e.code !== 'Space') return;
     e.preventDefault();
@@ -1505,7 +1551,9 @@ document.addEventListener('keydown', e => {
 });
 
 document.addEventListener('keyup', e => {
-  if (isTyping(e) || document.getElementById('cw-key').hidden) return;
+  if (isTyping(e)) return;
+  // A release always gets through while listening: one swallowed mid-drill would leave the key down.
+  if (document.getElementById('cw-key').hidden && !qhearOn()) return;
   if (keyerMode === 'straight') {
     if (e.code !== 'Space') return;
     e.preventDefault();
@@ -1515,6 +1563,329 @@ document.addEventListener('keyup', e => {
   if (e.code === settings.keyDit) { e.preventDefault(); keyer.release('dit'); }
   else if (e.code === settings.keyDah) { e.preventDefault(); keyer.release('dah'); }
 });
+
+/* ------------------------------------------------------ keyed Q-codes */
+/* Key a Q-code and the page answers it: QRV starts the next lesson, QRT
+   stops, QSM? asks again, QRS and QRQ change the pace, QSL checks the copy
+   - whatever button on the pane in front of you carries that code. The
+   buttons have always keyed their codes at you; this is the other half, and
+   it is how a learner comes to think in the code rather than translate it.
+
+   It listens on every pane but Your sending, where what you key is the
+   practice and is decoded as such; and it stands aside while a drill is
+   waiting for a character as its answer, or while you are typing. The
+   space bar is the straight key, the paddle keys the paddles, and a real
+   key through the audio input works too.
+
+   A learner's own fist is not the speed slider's, so a keyed burst is
+   decoded on its own timing once it stops: dits and dahs told apart by the
+   gap between the shortest and longest marks, characters by the gaps
+   between them. */
+const qhear = {down: false, downAt: 0, lastUp: 0, events: [], timer: null};
+function qhearOn() { return settings.qhear !== false; }
+/* A game waiting for a keyed answer claims what is decoded (see qgame). It
+   listens then even with answering Q-codes switched off - keying is the game. */
+let qhearClaim = null;
+function qhearHere() {
+  if (!(qhearOn() || qhearClaim) || capturing) return false;
+  if (!document.getElementById('cw-key').hidden) return false;        // Your sending: practice, not commands
+  if ((learnOn && learnWaiting) || flashKey) return false;            // a drill is waiting for an answer
+  return true;
+}
+
+/* The keyer's decoder, while it is keying Q-codes: it only records. */
+const qhearRecorder = {
+  symbols: [], text: '',
+  mark(ms) { qhear.events.push(['m', ms]); qhearShow(); qhearSoon(); },
+  space(ms) { qhear.events.push(['s', ms]); },
+  flush() {}, reset() {}, stats() { return {}; },
+};
+
+function qhearDown() {
+  if (qhear.down) return;
+  qhear.down = true;
+  const now = performance.now();
+  if (qhear.lastUp && qhear.events.length) qhear.events.push(['s', now - qhear.lastUp]);
+  qhear.downAt = now;
+  clearTimeout(qhear.timer);
+  player.down();
+}
+function qhearUp() {
+  if (!qhear.down) return;
+  qhear.down = false;
+  const now = performance.now();
+  qhear.events.push(['m', now - qhear.downAt]);
+  qhear.lastUp = now;
+  player.up();
+  qhearShow();
+  qhearSoon();
+}
+
+/* A burst is over when the key has been quiet for several of its own dits -
+   at least a second, so a learner thinking between letters is not cut off. */
+function qhearSoon() {
+  clearTimeout(qhear.timer);
+  const marks = qhear.events.filter(e => e[0] === 'm').map(e => e[1]);
+  const dit = marks.length ? Math.min(...marks) : 1200 / settings.wpm;
+  qhear.timer = setTimeout(qhearDone, Math.max(1100, dit * 9));
+}
+
+/* Decode a burst on its own timing. Returns the text and the symbols. */
+function qhearDecode(events, fallbackDit) {
+  const marks = events.filter(e => e[0] === 'm').map(e => e[1]);
+  if (!marks.length) return {text: '', symbols: ''};
+  const lo = Math.min(...marks), hi = Math.max(...marks);
+  // Two kinds of mark heard: split between them. One kind only: the speed setting says which.
+  const split = hi >= lo * 2 ? Math.sqrt(lo * hi) : (fallbackDit || 60) * 2;
+  const dits = marks.filter(m => m < split);
+  const dit = dits.length ? dits.reduce((a, b) => a + b, 0) / dits.length : split / 2;
+  let text = '', cur = '', symbols = '';
+  const close = () => { if (cur) { text += FROM_CODE[cur] || PROSIGN_CODE[cur] || '\u00b7'; symbols += cur + ' '; cur = ''; } };
+  events.forEach(([kind, ms]) => {
+    if (kind === 'm') cur += ms < split ? '.' : '-';
+    else if (ms >= dit * 2.2) close();
+  });
+  close();
+  return {text: text, symbols: symbols.trim()};
+}
+
+function qhearButtons() {
+  return [...document.querySelectorAll('button[data-q]')].filter(b =>
+    !b.disabled && !b.hidden && b.offsetParent !== null && !b.closest('[hidden]'));
+}
+
+function qhearSay(raw, said, ms) {
+  const card = document.getElementById('cw-qhear-card');
+  if (!card) return;
+  document.getElementById('cw-qhear-raw').textContent = raw;
+  document.getElementById('cw-qhear-said').innerHTML = said;
+  card.hidden = false;
+  clearTimeout(card._timer);
+  if (ms) card._timer = setTimeout(() => { card.hidden = true; }, ms);
+}
+
+/* As it is keyed: the symbols so far, so the operator sees the fist land. */
+function qhearShow() {
+  const d = qhearDecode(qhear.events, 1200 / settings.wpm);
+  qhearSay(d.symbols, '<span class="muted">' + escapeHTML(d.text) + '</span>', 0);
+}
+
+function qhearDone() {
+  const d = qhearDecode(qhear.events, 1200 / settings.wpm);
+  qhear.events = []; qhear.lastUp = 0;
+  if (keyer.decoder === qhearRecorder) keyer.prevEnd = null;
+  if (!d.text) return;
+  if (qhearClaim) { qhearSay(d.symbols, '<span class="muted">' + escapeHTML(d.text) + '</span>', 1500); qhearClaim(d.text); return; }
+  const here = qhearButtons();
+  const codes = [...new Set(here.map(b => b.dataset.q))].sort((a, b) => b.length - a.length);
+  const code = codes.find(c => d.text.includes(c));
+  if (!code) {
+    qhearSay(d.text, codes.length
+      ? '<span class="muted">- no button for that here; ' + codes.map(c =>
+          '<b class="mono">' + escapeHTML(c) + '</b> ' + escapeHTML(Q_MEANING[c] || '')).join(', ') + '</span>'
+      : '<span class="muted">- nothing on this pane answers to a Q-code</span>', 4000);
+    return;
+  }
+  const b = here.find(x => x.dataset.q === code);
+  qhearSay(code, escapeHTML(Q_MEANING[code] || '') + ' <span class="muted">&rarr; ' +
+    escapeHTML(b.textContent.replace(code, '').trim()) + '</span>', 2500);
+  // You keyed it: the button does not key it back at you.
+  b.dataset.qSung = '1';
+  try { b.click(); } finally { delete b.dataset.qSung; }
+}
+
+const qhearBox = document.getElementById('cw-qhear');
+if (qhearBox) {
+  qhearBox.checked = qhearOn();
+  qhearBox.addEventListener('change', () => { settings.qhear = qhearBox.checked; saveSettings(); });
+}
+
+/* ----------------------------------------------------------- Q games */
+/* Hear it, key it: ten prompts, turn and turn about. Hear it - a Q signal by
+   sound alone, its meaning picked from four. Key it - a meaning shown, the
+   code keyed back on the key, or typed where there is no key. Every answer
+   goes into this profile's Q record, and the next round leans on what was
+   missed. Next and Play again are QRV, so a learner can key their way
+   through the whole round. */
+const qg = {round: [], i: 0, right: 0, streak: 0, best: 0, missed: [], answered: false, signals: {}};
+
+function qgSound(code, done) {
+  const syms = [...code].map(c => ({char: c, code: CODE[c] || ''})).filter(s => s.code);
+  try { player.stop(); player.send([syms], localTiming(), null, done || null); } catch (e) { if (done) done(); }
+}
+
+function qgKeyedMatches(code, heard) {
+  // As cw.qgame_keyed_matches: the code, or the code asked as a question.
+  heard = String(heard || '').replace(/\s+/g, '').toUpperCase().replace(/^\u00b7+|\u00b7+$/g, '');
+  return heard === code || heard === code + '?' || (code.endsWith('?') && heard === code.slice(0, -1));
+}
+
+function qgScore() {
+  const box = document.getElementById('qg-score');
+  if (box) box.textContent = qg.round.length && qg.i < qg.round.length
+    ? qg.right + ' right of ' + (qg.i + (qg.answered ? 1 : 0)) + (qg.streak > 1 ? ' - ' + qg.streak + ' in a row' : '') : '';
+}
+
+async function qgStart() {
+  let d;
+  try { d = await api('/api/cw/qgame?count=10'); } catch (e) {
+    document.getElementById('qg-score').textContent = 'could not start a round';
+    return;
+  }
+  Object.assign(qg, {round: d.round, signals: d.signals, i: 0, right: 0, streak: 0, best: 0, missed: []});
+  document.getElementById('qg-summary').hidden = true;
+  document.getElementById('qg-play').hidden = false;
+  document.getElementById('qg-start').hidden = true;
+  qgShow();
+}
+
+function qgShow() {
+  const item = qg.round[qg.i], hear = qg.i % 2 === 0;
+  qg.answered = false;
+  document.getElementById('qg-step').textContent = (qg.i + 1) + ' of ' + qg.round.length + ' - ' + (hear ? 'hear it' : 'key it');
+  document.getElementById('qg-feedback').textContent = '';
+  document.getElementById('qg-next').hidden = true;
+  document.getElementById('qg-replay').hidden = !hear;
+  const choices = document.getElementById('qg-choices'), keyrow = document.getElementById('qg-keyrow');
+  if (hear) {
+    document.getElementById('qg-prompt').textContent = 'What does this mean?';
+    choices.innerHTML = item.choices.map(c => '<button class="btn" type="button" data-qg-code="' + escapeHTML(c.code) + '">' +
+      escapeHTML(c.meaning) + '</button>').join('');
+    keyrow.hidden = true;
+    qhearClaim = null;
+    qgSound(item.code);
+  } else {
+    document.getElementById('qg-prompt').innerHTML = 'Key the Q signal for: <b>' + escapeHTML(item.meaning) + '</b>';
+    choices.innerHTML = '';
+    keyrow.hidden = false;
+    const typed = document.getElementById('qg-typed');
+    typed.value = '';
+    qhearClaim = text => qgAnswer(qgKeyedMatches(item.code, text), text);
+  }
+  qgScore();
+}
+
+function qgAnswer(right, given) {
+  if (qg.answered) return;
+  qg.answered = true;
+  qhearClaim = null;
+  const item = qg.round[qg.i], hear = qg.i % 2 === 0;
+  if (right) { qg.right++; qg.streak++; qg.best = Math.max(qg.best, qg.streak); }
+  else { qg.streak = 0; qg.missed.push(item.code); }
+  postJSON('/api/cw/qgame', {code: item.code, right: right}).catch(() => {
+    /* the round goes on; this answer is just not on the record */
+  });
+  document.querySelectorAll('#qg-choices [data-qg-code]').forEach(b => {
+    b.disabled = true;
+    if (b.dataset.qgCode === item.code) b.classList.add('right');
+    else if (b.dataset.qgCode === given) b.classList.add('wrong');
+  });
+  const fb = document.getElementById('qg-feedback');
+  fb.innerHTML = (right ? '<b style="color:var(--green)">Right.</b> ' : '<b style="color:var(--red)">Not quite.</b> ') +
+    '<b class="mono">' + escapeHTML(item.code) + '</b> is ' + escapeHTML(item.meaning) +
+    (!right && !hear && given ? ' <span class="muted">- you keyed ' + escapeHTML(String(given).trim()) + '</span>' : '') + '.';
+  // A key-it answer is followed by the code itself, so the right shape is heard.
+  if (!hear) qgSound(item.code);
+  document.getElementById('qg-next').hidden = false;
+  qgScore();
+}
+
+function qgNext() {
+  if (!qg.answered) return;
+  qg.i++;
+  if (qg.i < qg.round.length) { qgShow(); return; }
+  document.getElementById('qg-play').hidden = true;
+  const start = document.getElementById('qg-start');
+  start.hidden = false;
+  start.innerHTML = 'Play again <span class="q">QRV</span>';
+  const missed = [...new Set(qg.missed)];
+  const sum = document.getElementById('qg-summary');
+  sum.hidden = false;
+  sum.innerHTML = '<b>' + qg.right + ' of ' + qg.round.length + '</b>' + (qg.best > 1 ? ', best run ' + qg.best : '') + '. ' +
+    (missed.length ? 'To come round again: ' + missed.map(c => '<b class="mono">' + escapeHTML(c) + '</b> ' +
+      escapeHTML(qg.signals[c] || '')).join('; ') + '.' : 'Nothing missed - the next round reaches for codes you have met less.');
+  document.getElementById('qg-score').textContent = '';
+}
+
+/* The matching cards: six codes, each a pair - the code and its meaning -
+   dealt face down. Turn two; a code card keys itself as it turns. A pair
+   stays up; two that are not turn back. */
+const qm = {cards: [], up: [], turns: 0, matched: 0, busy: false};
+
+async function qmDeal() {
+  let d;
+  try { d = await api('/api/cw/qgame?count=6'); } catch (e) { return; }
+  const cards = [];
+  d.round.forEach(r => { cards.push({code: r.code, face: r.code, kind: 'code'}); cards.push({code: r.code, face: r.meaning, kind: 'meaning'}); });
+  for (let i = cards.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [cards[i], cards[j]] = [cards[j], cards[i]]; }
+  Object.assign(qm, {cards: cards, up: [], turns: 0, matched: 0, busy: false});
+  document.getElementById('qg-cards').innerHTML = cards.map((c, i) =>
+    '<button class="qg-card down ' + c.kind + '" type="button" data-qm="' + i + '">' + escapeHTML(c.face) + '</button>').join('');
+  document.getElementById('qg-match-status').textContent = 'Turn two cards; a code card keys itself as it turns.';
+}
+
+function qmTurn(i) {
+  const card = qm.cards[i], el = document.querySelector('[data-qm="' + i + '"]');
+  if (qm.busy || !card || card.matched || qm.up.includes(i)) return;
+  el.classList.remove('down');
+  if (card.kind === 'code') qgSound(card.code);
+  qm.up.push(i);
+  if (qm.up.length < 2) return;
+  qm.turns++;
+  const [a, b] = qm.up.map(k => qm.cards[k]);
+  const status = document.getElementById('qg-match-status');
+  if (a.code === b.code && a.kind !== b.kind) {
+    a.matched = b.matched = true;
+    qm.up.forEach(k => document.querySelector('[data-qm="' + k + '"]').classList.add('matched'));
+    qm.up = [];
+    qm.matched++;
+    status.innerHTML = qm.matched === qm.cards.length / 2
+      ? '<b>All six pairs in ' + qm.turns + ' turns.</b> Six pairs take six turns at the least.'
+      : '<b class="mono">' + escapeHTML(a.code) + '</b> - ' + escapeHTML(qg.signals[a.code] || (a.kind === 'meaning' ? a.face : b.face)) +
+        '. ' + qm.matched + ' of ' + qm.cards.length / 2 + '.';
+    return;
+  }
+  qm.busy = true;
+  setTimeout(() => {
+    qm.up.forEach(k => document.querySelector('[data-qm="' + k + '"]').classList.add('down'));
+    qm.up = []; qm.busy = false;
+  }, 1100);
+}
+
+(function qgameControls() {
+  const pane = document.getElementById('cw-qgames');
+  if (!pane) return;
+  const pick = which => {
+    document.getElementById('qg-hear').hidden = which !== 'hear';
+    document.getElementById('qg-match').hidden = which !== 'match';
+    document.getElementById('qg-pick-hear').className = 'btn sm ' + (which === 'hear' ? 'primary' : 'ghost');
+    document.getElementById('qg-pick-match').className = 'btn sm ' + (which === 'match' ? 'primary' : 'ghost');
+    qhearClaim = null;
+    if (which === 'match' && !qm.cards.length) qmDeal();
+  };
+  document.getElementById('qg-pick-hear').addEventListener('click', () => pick('hear'));
+  document.getElementById('qg-pick-match').addEventListener('click', () => pick('match'));
+  document.getElementById('qg-start').addEventListener('click', qgStart);
+  document.getElementById('qg-next').addEventListener('click', qgNext);
+  document.getElementById('qg-replay').addEventListener('click', () => { const it = qg.round[qg.i]; if (it) qgSound(it.code); });
+  document.getElementById('qg-choices').addEventListener('click', e => {
+    const b = e.target.closest('[data-qg-code]');
+    if (b && !qg.answered) qgAnswer(b.dataset.qgCode === qg.round[qg.i].code, b.dataset.qgCode);
+  });
+  const typed = document.getElementById('qg-typed');
+  const go = () => { if (typed.value.trim()) qgAnswer(qgKeyedMatches(qg.round[qg.i].code, typed.value), typed.value); };
+  document.getElementById('qg-typed-go').addEventListener('click', go);
+  typed.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); go(); } });
+  document.getElementById('qg-deal').addEventListener('click', qmDeal);
+  document.getElementById('qg-cards').addEventListener('click', e => {
+    const c = e.target.closest('[data-qm]');
+    if (c) qmTurn(+c.dataset.qm);
+  });
+  // Leaving the pane ends any wait for a keyed answer.
+  document.querySelectorAll('#cw-modes button').forEach(b => b.addEventListener('click', () => {
+    if (b.dataset.mode !== 'qgames') qhearClaim = null;
+  }));
+})();
 
 /* ----------------------------------------------------------- audio key */
 /* A real key, wired the way it is on the bench: through a SignalLink or a

@@ -49,6 +49,7 @@ from . import trivia
 from .cutthroat import CutThroat
 from . import golfmap, paths, weather
 from .cwball import Baseball, load_season
+from .qbingo import QBingo
 from .golf import Golf
 from .shootout import Shootout
 
@@ -96,7 +97,8 @@ SHOOTOUT = "shootout"
 CUTTHROAT = "cutthroat"
 GOLF = "golf"
 BASEBALL = "baseball"
-MODES = (TOURNAMENT, SHOOTOUT, CUTTHROAT, GOLF, BASEBALL)
+QBINGO = "qbingo"
+MODES = (TOURNAMENT, SHOOTOUT, CUTTHROAT, GOLF, BASEBALL, QBINGO)
 # A stroke in golf is not timed, and no screen shows a clock on it; this is
 # only how long the room waits on a golfer who has walked away before it
 # plays their foul ball and moves the group on. Ten minutes.
@@ -523,6 +525,7 @@ class Room:
         self.mode = TOURNAMENT
         self.shootout = None
         self.cutthroat = None      # musical chairs with questions; see cutthroat.py
+        self.qbingo = None         # Q-code bingo, people only; see qbingo.py
         # The table's own rounds go into the same log as a hall's, with
         # nobody's name in them: the key makes the same person the same tag
         # all evening and nobody tomorrow (see db.hall_who), and the hooks
@@ -710,6 +713,8 @@ class Room:
         after that. During golf: a ball on this hole's tee."""
         if self.golf is not None and not self.golf.over():
             self.golf.add_player(player.id)
+        if self.qbingo is not None and not self.qbingo.over() and not player.bot:
+            self.qbingo.seat(player.id, player.name)       # a card, even mid-game
         if self.cutthroat is not None and not self.cutthroat.over():
             self.cutthroat.seat(player.id)
             if player.bot:
@@ -726,6 +731,8 @@ class Room:
             gone = self.players.pop(player_id, None)
             if gone is not None and self.cutthroat is not None:
                 self.cutthroat.withdraw(player_id)    # leaving is losing
+            if gone is not None and self.qbingo is not None:
+                self.qbingo.withdraw(player_id)
             self.clubs.pop(player_id, None)
             self.shapes.pop(player_id, None)
             if gone is not None and self.golf is not None:
@@ -1546,6 +1553,60 @@ class Room:
             if self.mode == CUTTHROAT:
                 self.mode = TOURNAMENT
 
+    # ------------------------------------------------------------- Q bingo
+
+    def begin_qbingo(self, wpm=None, every_s=None):
+        """Start Q-code bingo for the people at the table - a card each.
+        Practice players do not play: there is nothing for them to hear."""
+        with self.lock:
+            people = [(pid, pl.name) for pid, pl in sorted(self.players.items()) if not pl.bot]
+            if not people:
+                return None, "Q-code bingo needs somebody at the table"
+            kwargs = {}
+            if wpm:
+                kwargs["wpm"] = wpm
+            if every_s:
+                kwargs["every_s"] = every_s
+            self.qbingo = QBingo(people, **kwargs)
+            self.mode = QBINGO
+            return self.qbingo, None
+
+    def end_qbingo(self):
+        with self.lock:
+            self.qbingo = None
+            if self.mode == QBINGO:
+                self.mode = TOURNAMENT
+
+    def qbingo_call(self):
+        """The table keys the next code. Returns (code, why)."""
+        with self.lock:
+            if self.qbingo is None:
+                return None, "this table is not playing Q-code bingo"
+            code = self.qbingo.call()
+            if code:
+                return code, None
+            return None, ("the game is won" if self.qbingo.over() else "every Q signal has been keyed")
+
+    def qbingo_mark(self, player_id, square, on=True):
+        with self.lock:
+            if self.qbingo is None:
+                return False, "this table is not playing Q-code bingo"
+            return self.qbingo.mark(player_id, square, on)
+
+    def qbingo_claim(self, player_id):
+        with self.lock:
+            if self.qbingo is None:
+                return False, "this table is not playing Q-code bingo"
+            won, words = self.qbingo.claim(player_id)
+            if won:
+                log.info("party: Q-code bingo won by %s after %d calls",
+                         self.qbingo.names.get(player_id), len(self.qbingo.called))
+            return won, words
+
+    def qbingo_view(self, player_id=None):
+        with self.lock:
+            return self.qbingo.view(player_id) if self.qbingo is not None else None
+
     # ------------------------------------------------------------ baseball
     def begin_baseball(self, innings=3, base_wpm=10.0, league="little", pitcher="machine"):
         """CW Baseball over everybody at the table: the cohorts are the
@@ -1940,6 +2001,7 @@ class Room:
                 "mode": self.mode,
                 "shootout": self.shootout_view(player_id),
                 "cutthroat": self.cutthroat_view(player_id),
+                "qbingo": self.qbingo_view(player_id),
                 "baseball": self.baseball_view(player_id),
                 "golf": self.golf_view(player_id),
                 # Filled in by the route when this table reports to a hall:

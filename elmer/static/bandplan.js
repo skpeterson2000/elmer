@@ -1294,21 +1294,49 @@ function bpBorderLevel() {
   return bpView.zoom >= 7 ? 'counties' : bpView.zoom >= 2.5 ? 'states' : 'countries';
 }
 
-/* A continuous ramp in the band's own color - dark where the band is shut,
-   the band's hue where it is good, paling towards white at the best - so the
-   eye reads a field and not a legend, and reads which band's field it is
-   from the same color the band has on its button. The stops are made from
-   the color: the page's background at the bottom, the hue at 70, and the
-   hue lightened at the top. The legend's gradient is written from the same
-   stops, so it cannot drift from the map. */
+/* A continuous ramp in the band's own color, so the eye reads a field and
+   not a legend, and reads which band's field it is from the color on its
+   button. Strength is intensity: at the best, the band's color at its most
+   saturated; below that, the same color fading - losing its saturation
+   toward gray and its light toward the background - until where the band
+   is shut there is next to nothing of it. It used to pale toward white at
+   the top, which made every band's best look alike, white-hot; a strong 15 m
+   and a strong 40 m are now as different as their buttons. The legend's
+   gradient is written from the same stops, so it cannot drift from the map. */
 const REACH_BG = [13, 17, 23];                      // --bg
 const REACH_FALLBACK = '#4ade80';                    // a band with no color: 20 m's
-function reachStops(hex) {
+function bandRGB(hex) {
   const c = /^#([0-9a-f]{6})$/i.test(hex || '') ? hex : REACH_FALLBACK;
-  const rgb = [1, 3, 5].map(i => parseInt(c.slice(i, i + 2), 16));
-  const mix = (a, b, t) => a.map((v, i) => Math.round(v + (b[i] - v) * t));
-  return [[0, mix(REACH_BG, rgb, 0.08)], [15, mix(REACH_BG, rgb, 0.22)], [40, mix(REACH_BG, rgb, 0.55)],
-          [70, rgb], [100, mix(rgb, [255, 255, 255], 0.6)]];
+  return [1, 3, 5].map(i => parseInt(c.slice(i, i + 2), 16));
+}
+/* The band's color at full intensity: saturation pushed most of the way to
+   full, and the lightness held to the middle, where a color is most itself -
+   a pale band (15 m's lavender) deepens rather than staying pastel. */
+function vividRGB(rgb) {
+  const [r, g, b] = rgb.map(v => v / 255);
+  const max = Math.max(r, g, b), min = Math.min(r, g, b), l = (max + min) / 2, d = max - min;
+  let h = 0;
+  if (d) h = max === r ? ((g - b) / d) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  const s0 = d ? d / (1 - Math.abs(2 * l - 1)) : 0;
+  const s = s0 + (1 - s0) * 0.6, L = Math.max(0.45, Math.min(0.6, l));
+  const C = (1 - Math.abs(2 * L - 1)) * s, X = C * (1 - Math.abs(((h % 6) + 6) % 6 % 2 - 1)), m = L - C / 2;
+  const hh = ((h % 6) + 6) % 6;
+  const [r1, g1, b1] = hh < 1 ? [C, X, 0] : hh < 2 ? [X, C, 0] : hh < 3 ? [0, C, X] : hh < 4 ? [0, X, C] : hh < 5 ? [X, 0, C] : [C, 0, X];
+  return [r1, g1, b1].map(v => Math.round((v + m) * 255));
+}
+/* The same color, faded by t (0 = itself, 1 = gone): first toward the gray of
+   its own lightness, then toward the background. */
+function fadedRGB(rgb, t) {
+  const gray = 0.299 * rgb[0] + 0.587 * rgb[1] + 0.114 * rgb[2];
+  return rgb.map((v, i) => {
+    const washed = v + (gray - v) * t * 0.7;
+    return Math.round(washed + (REACH_BG[i] - washed) * t);
+  });
+}
+function reachStops(hex) {
+  const full = vividRGB(bandRGB(hex));
+  return [[0, fadedRGB(full, 0.92)], [15, fadedRGB(full, 0.8)], [40, fadedRGB(full, 0.55)],
+          [70, fadedRGB(full, 0.25)], [100, full]];
 }
 function reachLUT(stops) {
   const lut = new Uint8ClampedArray(101 * 3);
@@ -1327,14 +1355,13 @@ function reachLUT(stops) {
 let REACH_LUT = reachLUT(reachStops(REACH_FALLBACK));
 /* The map and its legend take the band's color together. */
 function reachPaint(bandName) {
-  const stops = reachStops(bandColor(bandName));
-  REACH_LUT = reachLUT(stops);
-  REACH_RGB = stops[3][1];                           // the band's own hue, at 70
+  REACH_LUT = reachLUT(reachStops(bandColor(bandName)));
+  REACH_RGB = bandRGB(bandColor(bandName));          // the band's own color, as on its button
   reachLegend();
 }
 /* The legend is the map's own colors: the band's ramp on the plain ground,
    and on the relief the cloud at the slider's strength over a mid-tone of
-   the ground, from bare at shut to the band-washed white at the best. */
+   the ground, from bare at shut to the band's full color at the best. */
 function reachLegend() {
   const ramp = document.querySelector('#bp-reach .bp-reach-ramp');
   if (!ramp) return;
@@ -2369,6 +2396,28 @@ function bpReachSeed() {
 /* The station's antenna (elmer.js), both ways. Chosen here, it is the Lab's
    and the analyzer's too; chosen there, it is this map's. The NVIS switch's
    stand-in wire is a what-if and is not written - only a choice made here. */
+/* "Set up an antenna for this" takes the antenna on this page to the Lab.
+   The shared station antenna was written only when a control here was
+   changed, so an antenna this page had seeded or remembered never reached
+   the Lab, and one chosen since in the Lab or on the analyzer was shown
+   there instead. So the press writes what is on screen first, and the link
+   carries the kind, height and power as well, for a browser that keeps
+   nothing between pages. With no antenna chosen here the Lab suggests one,
+   as before. */
+document.addEventListener('click', e => {
+  const link = e.target.closest('a.bp-to-lab');
+  if (!link) return;
+  const sel = document.getElementById('bp-reach-ant');
+  if (!sel || sel.value === 'none' || !sel.value) return;
+  bpToStation();
+  const url = new URL(link.href, location.href);
+  url.searchParams.set('kind', sel.value);
+  const h = document.getElementById('bp-reach-h'), w = document.getElementById('bp-reach-w');
+  if (h && +h.value > 0) url.searchParams.set('h', h.value);
+  if (w && +w.value > 0) url.searchParams.set('pw', w.dataset.cb && w.dataset.was ? w.dataset.was : w.value);
+  link.href = url.pathname + url.search + url.hash;
+});
+
 function bpToStation() {
   const sel = document.getElementById('bp-reach-ant');
   if (!sel || sel.value === 'none') return;
@@ -2865,7 +2914,7 @@ function segCardHTML(a, band, forPick) {
              the one chosen on the map, and so suggested one in its place:
              the antenna picked here never arrived. The Lab reads the
              station's antenna for itself. */
-          '<a class="btn sm primary" href="/lab?f=' + segMiddle(a).toFixed(3) +
+          '<a class="btn sm primary bp-to-lab" href="/lab?f=' + segMiddle(a).toFixed(3) +
             '&class=' + encodeURIComponent(bpClass()) +
             '#ant">Set up an antenna for this →</a>' +
           '<a class="btn sm ghost" href="/propagation">Full conditions</a>' +
