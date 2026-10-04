@@ -48,7 +48,7 @@ def main():
         return b"%PDF-1.4 stub"
 
     def fake_full(bands, license_class, regional=None, station=None,
-                  interop=False, own=True):
+                  interop=False, own=True, spare=None):
         seen.clear()
         seen.update(kind="full", license_class=license_class,
                     station=station, own=own)

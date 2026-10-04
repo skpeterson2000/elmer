@@ -75,10 +75,12 @@
            The word rank goes in the visible label instead. The ladder keeps
            the class names on purpose, since a title is only earned with the
            material it names; what must not happen is somebody reading one as
-           a grant, and that is a matter of where the word sits. #}
+           a grant, and that is a matter of where the word sits. "Amateur
+           rank" still read as a rank in amateur radio, as if somebody had
+           conferred it, so the label names whose rank it is: ELMER's. #}
         <a class="title-line" href="/#ranks"
            title="{{ track.label }} standing in ELMER - a study rank, not an FCC license">
-          <span class="title-track">{{ track.label }} rank</span>
+          <span class="title-track">ELMER {{ track.label }} rank</span>
           <span class="title-name {% if track.lapsed %}lapsed{% endif %}">{{ track.title }}</span>
           {% if track.lapsed %}<span class="lapse-dot" title="lapsed - one passing exam renews it">&#9888;</span>{% endif %}
         </a>

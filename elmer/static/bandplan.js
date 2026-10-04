@@ -196,6 +196,7 @@ function channelTicks(band) {
 }
 
 function bpRender() {
+  bpSheetLabel();
   document.querySelectorAll('#bp-bands [data-band]').forEach(b => {
     b.classList.toggle('on', b.dataset.band === bpBand);
   });
@@ -368,6 +369,36 @@ document.getElementById('bp-pdf').addEventListener('click', async () => {
     location.href = (await res.json()).view;
   } catch (e) { toast('Could not build the chart', 'See data/elmer.log'); }
   btn.disabled = false; btn.textContent = 'Full chart (PDF)';
+});
+
+/* One band, in one place: the plan, simplex and the repeaters near the QTH -
+   or near where the operator is going, typed in the box. The button names the
+   band so it is plain which one is coming. See elmer/bandsheet.py. */
+function bpSheetLabel() {
+  const btn = document.getElementById('bp-sheet');
+  if (btn && !btn.disabled) btn.textContent = (bpBand || 'This band') + ' (PDF)';
+}
+document.getElementById('bp-sheet').addEventListener('click', async () => {
+  const btn = document.getElementById('bp-sheet');
+  const say = document.getElementById('bp-sheet-say');
+  btn.disabled = true; btn.textContent = 'Building…'; say.textContent = '';
+  try {
+    const res = await fetch('/api/bandplan/band-pdf', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({band: bpBand, class: bpClass(),
+                            from: document.getElementById('bp-sheet-from').value.trim(),
+                            radius: document.getElementById('bp-sheet-r').value})});
+    const d = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      /* Said where it was asked: a town that could not be found is the
+         operator's to fix, and a toast would be gone before it was read. */
+      say.innerHTML = '<span class="warntext">' + escapeHTML(d.error || d.description || 'could not build the sheet - see data/elmer.log') + '</span>';
+    } else {
+      location.href = d.view;
+      return;
+    }
+  } catch (e) { toast('Could not build the sheet', 'See data/elmer.log'); }
+  btn.disabled = false; bpSheetLabel();
 });
 
 bpLoad();
@@ -1772,9 +1803,11 @@ function bpReachBind() {
   const pointers = new Map();
   let pinch = null, lastTap = 0;
   canvas.addEventListener('wheel', e => { e.preventDefault(); bpZoomAt(e.deltaY < 0 ? 1.25 : 0.8, e.clientX, e.clientY); }, {passive: false});
+  let pressAt = null;
   canvas.addEventListener('pointerdown', e => {
     canvas.setPointerCapture(e.pointerId);
     pointers.set(e.pointerId, {x: e.clientX, y: e.clientY});
+    pressAt = pointers.size === 1 ? {x: e.clientX, y: e.clientY} : null;
     if (pointers.size === 2) {
       const [a, b] = [...pointers.values()];
       pinch = {dist: Math.hypot(a.x - b.x, a.y - b.y), zoom: bpView.zoom};
@@ -1805,6 +1838,13 @@ function bpReachBind() {
     }
   });
   const up = e => { pointers.delete(e.pointerId); if (pointers.size < 2) pinch = null; bpView.dragging = false; };
+  /* A press that did not move is a press, not the end of a drag: on a tree it
+     opens the park's card, and is not counted toward a double-tap zoom. */
+  canvas.addEventListener('pointerup', e => {
+    const was = pressAt;
+    pressAt = null;
+    if (was && Math.hypot(e.clientX - was.x, e.clientY - was.y) < 6 && bpSpotPress(e)) lastTap = 0;
+  });
   canvas.addEventListener('pointerup', up); canvas.addEventListener('pointercancel', up); canvas.addEventListener('pointerleave', up);
   document.querySelectorAll('input[name="bp-reach-mode"]').forEach(r => r.addEventListener('change', () => {
     remember('bandplan.reachmode', bpReachMode());
@@ -1950,21 +1990,66 @@ function bpSpotTipHTML(h) {
   if (h.kind === 'pota') {
     return '<b>' + escapeHTML(s.call) + '</b> is on the air from <b>' + escapeHTML(s.ref) + '</b>' +
       (s.name ? ' &mdash; ' + escapeHTML(s.name) : '') + '<br>' + escapeHTML([freq, s.mode].filter(Boolean).join(' ')) +
-      ', spotted ' + ago + '. A park on the air is a contact waiting: give them a call.';
+      ', spotted ' + ago + '. A park on the air is a contact waiting: give them a call.' +
+      '<br><span class="tiny muted">Press the tree for the park’s card.</span>';
   }
   return '<b>' + escapeHTML(s.call) + '</b> (' + escapeHTML(s.grid) + ') heard here at ' +
     (s.snr > 0 ? '+' : '') + s.snr + ' dB' + (freq ? ' on ' + escapeHTML(freq) : '') + (s.mode ? ' ' + escapeHTML(s.mode) : '') +
     ', ' + ago + '.';
 }
 
+/* The spot nearest a point on the screen, within a fingertip of it, or null.
+   `kind` keeps it to the trees when only a park will do. */
+function bpSpotAt(clientX, clientY, kind) {
+  const canvas = document.getElementById('bp-reach-map');
+  if (!canvas || !bpSpotHits.length) return null;
+  const r = canvas.getBoundingClientRect(), k = canvas.width / r.width;
+  const x = (clientX - r.left) * k, y = (clientY - r.top) * k;
+  let best = null, bestD = 11 * k;
+  bpSpotHits.forEach(h => {
+    if (kind && h.kind !== kind) return;
+    const d = Math.hypot(h.x - x, h.y - y);
+    if (d < bestD) { best = h; bestD = d; }
+  });
+  return best;
+}
+
+/* A tree pressed: the park's card under the map, the one the POTA / SOTA page
+   shows for a place picked there. Reading it asks the program for the park's
+   record, which is what picking a park has always done. True when the press
+   was on a tree, so the map does not also take it as half a double-tap. */
+function bpSpotPress(e) {
+  const hit = bpSpotAt(e.clientX, e.clientY, 'pota');
+  if (!hit || !hit.s.ref) return false;
+  const box = document.getElementById('bp-park'), card = document.getElementById('bp-park-card');
+  if (!box || !card) return false;
+  const ref = hit.s.ref;
+  box.hidden = false;
+  box.dataset.ref = ref;
+  parkArrive(box, false);           // a tree is always a park
+  card.innerHTML = '<p class="small muted">Reading ' + escapeHTML(ref) + '&hellip;</p>';
+  box.scrollIntoView({block: 'nearest', behavior: 'smooth'});
+  api('/api/reference?ref=' + encodeURIComponent(ref))
+    .then(r => { if (box.dataset.ref === ref) parkCard(r, card, {activator: hit.s.call}); })
+    .catch(() => {
+      if (box.dataset.ref === ref) card.innerHTML = '<p class="small muted">Could not read ' + escapeHTML(ref) + ' - see data/elmer.log.</p>';
+    });
+  return true;
+}
+
+{
+  const shut = document.getElementById('bp-park-shut');
+  if (shut) shut.addEventListener('click', () => { document.getElementById('bp-park').hidden = true; });
+}
+
 function bpSpotHover(e) {
   const tip = document.getElementById('bp-spot-tip'), canvas = document.getElementById('bp-reach-map');
   if (!tip || !canvas) return;
-  if (e.buttons || !bpSpotHits.length) { tip.hidden = true; return; }
-  const r = canvas.getBoundingClientRect(), k = canvas.width / r.width;
-  const x = (e.clientX - r.left) * k, y = (e.clientY - r.top) * k;
-  let best = null, bestD = 11 * k;
-  bpSpotHits.forEach(h => { const d = Math.hypot(h.x - x, h.y - y); if (d < bestD) { best = h; bestD = d; } });
+  if (e.buttons || !bpSpotHits.length) { tip.hidden = true; canvas.style.cursor = 'grab'; return; }
+  const r = canvas.getBoundingClientRect();
+  const best = bpSpotAt(e.clientX, e.clientY);
+  // A tree is something to press; the rest of the map is something to drag.
+  canvas.style.cursor = best && best.kind === 'pota' ? 'pointer' : 'grab';
   if (!best) { tip.hidden = true; return; }
   tip.innerHTML = bpSpotTipHTML(best);
   tip.hidden = false;

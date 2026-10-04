@@ -60,7 +60,7 @@
 <div class="panel mt">
   <div class="panel-title">Find the page</div>
   <input id="lib-q" placeholder="cw pitch &middot; &quot;menu 062&quot; &middot; tuner range &middot; radial" autocomplete="off">
-  <div class="tiny muted" style="margin:.35rem 0 0">Every word must be on the page. Quote a phrase to keep it whole. Nothing is stemmed: <i>tuner</i> does not find <i>tuning</i>, so that this can never be found to have invented a match. The books on the table answer first; the shelf is searched too, and its pages follow.</div>
+  <div class="tiny muted" style="margin:.35rem 0 0">Every word must be on the page. Quote a phrase to keep it whole. Nothing is stemmed: <i>tuner</i> does not find <i>tuning</i>, so that this can never be found to have invented a match. The books on the table answer first; the shelf is searched too, and its pages follow, then ELMER&rsquo;s own cards.</div>
   <div id="lib-results" class="mt"></div>
 </div>
 
@@ -476,7 +476,22 @@
     catch (e) { results.innerHTML = '<div class="warntext small">Could not search.</div>'; return; }
     terms = d.terms || [];
     const shelf = d.shelf || {hits: [], total: 0, books: 0};
-    if (!d.books && !shelf.books) { results.innerHTML = '<p class="small muted">No book in the Library has been read yet, so there is nothing to search.</p>'; return; }
+    /* ELMER's own cards, beneath the books and apart from them: a card has
+       no page to open, and among the pages it would read as a book's words.
+       The source line goes with every one - several of them say the
+       attribution is doubtful, and without that it is a different claim. */
+    const cards = d.cards || [];
+    const cardsOut = cards.length ? `<div class="tiny muted" style="margin:1rem 0 .3rem"><b>On ELMER&rsquo;s cards</b> &middot; the ones shown while a screen waits</div>` +
+      cards.map(c => `
+        <div class="lib-hit lib-card">
+          <div class="where"><span class="tiny muted">${escapeHTML(c.deck_label)}</span></div>
+          <p class="small snip">${mark(c.text)}</p>
+          <p class="tiny muted" style="margin:0">&mdash; ${mark(c.about)}</p>
+        </div>`).join('') : '';
+    if (!d.books && !shelf.books) {
+      results.innerHTML = '<p class="small muted">No book in the Library has been read yet, so there is nothing to search.</p>' + cardsOut;
+      return;
+    }
     const pages = n => n + ' page' + (n === 1 ? '' : 's');
     const hit = (h, away) => `
         <div class="lib-hit">
@@ -504,7 +519,7 @@
     } else if (!d.hits.length) {
       out = `<p class="small muted">No book in the Library uses those words. Try another word the manual might use - nothing here guesses at synonyms.</p>`;
     }
-    results.innerHTML = out;
+    results.innerHTML = out + cardsOut;
   }
   results.addEventListener('click', async e => {
     const s = e.target.closest('[data-shelve]');

@@ -65,7 +65,7 @@ import time
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
-from . import paths
+from . import paths, trivia
 
 log = logging.getLogger("elmer")
 
@@ -86,6 +86,9 @@ LEGACY_HIDDEN_NAME = ".hidden.json"
 PLACES = ("table", "shelf", "all")
 # How many pages from the shelf a search offers beneath the table's.
 SHELF_HITS = 10
+# ELMER's own cards that match, beneath the books - a handful, so that a
+# search for "Marconi" is not a deck of cards with the manuals pushed off it.
+CARD_HITS = 6
 # Who added each book from the page, by file name: {name: user id}. A book
 # copied into the folder by hand has no entry.
 ADDED_NAME = ".added.json"
@@ -1151,6 +1154,13 @@ def search(query, limit=30, book_name=None, shelf_limit=SHELF_HITS):
     `book_name` searches that one book wherever it is, and everything comes
     back in `hits` - the reader, searching inside the book it has open.
 
+    ELMER's own cards - the history, the quotations, the hams, shown while a
+    screen waits - come back in `cards`, apart from the pages: a card has no
+    page to open, and among the pages it would read as if a book had said
+    it. Each carries its source line whole, because several of them say the
+    attribution is doubtful, and a card shown without that is a different
+    claim. The reader's search inside one book does not include them.
+
     A page counts if every term is on it. Its score is how many times the
     terms appear, and a page where the first term appears in the first
     quarter of the text edges ahead of one where it is a footnote. Nothing
@@ -1161,13 +1171,14 @@ def search(query, limit=30, book_name=None, shelf_limit=SHELF_HITS):
     terms = _terms(query)
     none = {"hits": [], "total": 0, "books": 0}
     if not terms:
-        return {"query": query or "", "terms": [], **none, "shelf": dict(none)}
+        return {"query": query or "", "terms": [], **none, "shelf": dict(none), "cards": []}
     if book_name is not None:
         pdf = book(book_name)
         found = _pages_with(terms, [(pdf, _load_index(pdf))] if pdf else [], limit)
-        return {"query": query, "terms": terms, **found, "shelf": dict(none)}
+        return {"query": query, "terms": terms, **found, "shelf": dict(none), "cards": []}
     return {"query": query, "terms": terms, **_pages_with(terms, _indexes("table"), limit),
-            "shelf": _pages_with(terms, _indexes("shelf"), shelf_limit)}
+            "shelf": _pages_with(terms, _indexes("shelf"), shelf_limit),
+            "cards": trivia.search(terms, CARD_HITS)}
 
 
 def _pages_with(terms, indexed, limit):

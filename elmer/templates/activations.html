@@ -144,5 +144,6 @@
 <script>window.UNITS = {{ units|tojson }};</script>
 <script>window.POTA_ASKED = {{ pota_asked|tojson }};
 window.CALLSIGN = {{ (profile.callsign or '')|tojson }};</script>
+<script src="{{ asset('parkcard.js') }}"></script>
 <script src="{{ asset('activations.js') }}"></script>
 {% endblock %}

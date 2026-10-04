@@ -33,12 +33,12 @@ from flask import (Flask, Response, abort, g, has_request_context, jsonify, make
 from . import (
     activations, activationspdf, antenna_advice, antennapdf, autoplay, awardpdf, awards, bandpdf,
     bandplan, bench, bugreport, calibrate, callsign, celestial,
-    certpdf, cohort, conductors, coursemap, cw, db, devreset,
+    bandsheet, certpdf, cohort, conductors, coursemap, cw, db, devreset,
     diagnostics, difficulty, discovery, exams, explain, fieldkit,
     fieldreport, forecastlog, game, gating, geo, geocode, golf,
     golfmap, gps, groundwave, hall, host, ionosonde,
     landmarks, ledger, library, logs, mail, manuals, monitoring, nanovna,
-    netcontrol, netwatch, op25, papers, party, pathto, patterns,
+    netcontrol, netwatch, op25, papers, party, pathto, patterns, pdfcard,
     paths, personal, phonegps, places, pota, prints, programs, provenance,
     palette, peeking, propagation, qr, ranks, reachout, references, regional,
     repeaters, rfexposure, rfpdf, runladder, show, smith, spotlog,
@@ -1162,6 +1162,10 @@ def bandplan_page():
         paper_amateur=papers.paper(connection.user_id, "amateur") is not None,
         paper_gmrs=papers.paper(connection.user_id, "gmrs") is not None,
         paper_commercial=any(papers.paper(connection.user_id, k) is not None for k in ("grol", "mrop", "radar")),
+        # The single-band sheet's radius, opened at fifty miles in whatever
+        # the operator counts in.
+        sheet_radius=round(units.from_km(bandsheet.DEFAULT_RADIUS_KM, profile["settings"].get("units"))),
+        sheet_unit=units.short(profile["settings"].get("units")),
         **profile_block(connection))
 
 
@@ -1714,8 +1718,9 @@ def api_activations_print():
     # screen: a printout is read days later, in a valley, by somebody with no
     # way to check it.
     cover = references.coverage(lat, lon)
+    spare = _spare_card("activations")
     pdf = activationspdf.build(
-        parks, summits, want=want, radius_km=references.DEFAULT_RADIUS_KM,
+        parks, summits, want=want, radius_km=references.DEFAULT_RADIUS_KM, spare=spare,
         inner_km=inner_km, outer_km=outer_km, system=system,
         age_days=cover.get("oldest_days"), stale=cover.get("stale", False),
         station={"grid": place.get("grid") or "",
@@ -1733,7 +1738,7 @@ def api_activations_print():
                       "%s near %s" % (named.replace("-", " ").capitalize(),
                                       place.get("grid") or "here"),
                       {"want": want, "parks": len(parks),
-                       "summits": len(summits), "shown": shown})
+                       "summits": len(summits), "shown": shown, **_card_meta(spare)})
     return _print_reply(row, _wants_raw(body))
 
 
@@ -2401,8 +2406,9 @@ def api_antenna_pdf():
     except Exception:
         log.info("no QTH for the sheet's footprint; drawing a mid-latitude sky", exc_info=False)
         lat = None
+    spare = _spare_card("antenna")
     pdf = antennapdf.build(kind, mhz, height_ft, conductor, site,
-                           use=body.get("use") or None,
+                           use=body.get("use") or None, spare=spare,
                            callsign=profile_callsign() or "",
                            license_class=license_class,
                            unit=units.system(settings.get("units"))["key"], lat=lat)
@@ -2413,7 +2419,7 @@ def api_antenna_pdf():
     row = prints.keep(pdf, name, "antenna",
                       f"{title} - {mhz:.3f} MHz, {units.say_ft(height_ft, settings.get('units'))}",
                       {"kind": kind, "mhz": mhz, "height": height_ft,
-                       "conductor": conductor, "site": site})
+                       "conductor": conductor, "site": site, **_card_meta(spare)})
     return _print_reply(row, _wants_raw(body))
 
 
@@ -2740,6 +2746,23 @@ def api_bandplan_regional(state):
 # leaving ELMER to find a file manager. So the unit keeps what it prints and
 # hands back where to look at it, and the looking happens inside the app.
 
+def _spare_card(kind):
+    """The card-in-the-spare-space for a sheet of this kind, or None when
+    this account has cards on printouts off. See pdfcard.py."""
+    settings = db.get_profile(conn())["settings"]
+    cards = pdfcard.candidates(settings, kind)
+    return None if cards is None else pdfcard.SpareCard(cards)
+
+
+def _card_meta(spare):
+    """What the shelf remembers about the card a sheet went out with."""
+    if spare is None or spare.chosen is None:
+        return {}
+    card = spare.chosen
+    log.info("printout card: %s (%s)", card["id"], card["deck"])
+    return {"card": {"id": card["id"], "deck": card["deck"], "about": card["about"]}}
+
+
 def _print_reply(row, raw=False):
     """Where to find a freshly built PDF - or, if asked, the PDF itself.
 
@@ -2766,8 +2789,12 @@ def _wants_raw(body):
 @app.route("/prints")
 def prints_page():
     """Everything this unit has printed, and a way to print it again."""
+    settings = db.get_profile(conn())["settings"]
     return render_template("prints.html", shelf=prints.shelf(),
-                           keep=prints.KEEP, **profile_block(conn()))
+                           keep=prints.KEEP,
+                           card_mode=settings.get("print_cards") or "off",
+                           card_picks=settings.get("print_card_picks") or [],
+                           **profile_block(conn()))
 
 
 # --------------------------------------------------------------------------
@@ -3279,13 +3306,17 @@ def api_bandplan_pdf():
     # program is for and reflects on more people than the one waving it.
     own = _own_class()
     mine = bool(own) and license.lower() == own.lower()
+    spare = None
     if body.get("layout") == "card":
         pdf = bandpdf.build_card(
             license, {"callsign": profile_callsign()} if mine else None,
             own=mine)
     else:
+        # The one-page chart above takes no card: it is one fitted drawing,
+        # and the corner it leaves is the colophon's.
+        spare = _spare_card("band-chart")
         pdf = bandpdf.build(bands, license, plan,
-                            interop=bool(body.get("interop")), own=mine)
+                            interop=bool(body.get("interop")), own=mine, spare=spare)
     card = body.get("layout") == "card"
     name = f"band-plan-{license.lower()}{'-' + state.lower() if state else ''}.pdf"
     if card:
@@ -3294,7 +3325,104 @@ def api_bandplan_pdf():
     row = prints.keep(pdf, name, "band-card" if card else "band-chart",
                       f"{'One-page chart' if card else 'Full band chart'} "
                       f"- {license}" + (f", {state}" if state else ""),
-                      {"class": license, "state": state})
+                      {"class": license, "state": state, **_card_meta(spare)})
+    return _print_reply(row, _wants_raw(body))
+
+
+@app.route("/api/bandplan/band-pdf", methods=["POST"])
+def api_bandplan_band_pdf():
+    """One band, in one place: the coordinator's plan there, the simplex
+    and calling frequencies, and the repeaters near it. See bandsheet.py.
+
+    The place is the QTH in use when it is printed, unless `from` names
+    somewhere else - a town, a grid square, coordinates - which is how the
+    sheet for a trip out of state is made the night before. The coordinator
+    is then that state's, not home's. `radius` is in the operator's units.
+    """
+    body = request.get_json(silent=True) or {}
+    name = str(body.get("band") or "")
+    if name not in bandplan.BAND_INDEX:
+        abort(400, "unknown band")
+    # Every class the page can be looked at under, No license and visiting
+    # included: a sheet for a trip is worth having before the license is.
+    license = body.get("class", "Technician")
+    if license not in bandplan.CHOICES:
+        abort(400, "unknown license class")
+    connection = conn()
+    profile = db.get_profile(connection)
+    system = units.system(profile["settings"].get("units"))["key"]
+    radius_km = bandsheet.DEFAULT_RADIUS_KM
+    if body.get("radius") not in (None, ""):
+        try:
+            radius_km = units.to_km(float(body["radius"]), system)
+        except (TypeError, ValueError):
+            abort(400, "radius must be a number of %s" % units.long_name(system))
+    radius_km = max(1.0, min(bandsheet.MAX_RADIUS_KM, radius_km))
+
+    asked = str(body.get("from") or "").strip()
+    if asked:
+        place = geocode.resolve(asked)
+        if not place or place.get("lat") is None:
+            abort(400, "could not find “%s” - try a town, a grid "
+                       "square, or coordinates" % asked[:60])
+    else:
+        place = qth_for(connection, profile)
+    lat, lon = place.get("lat"), place.get("lon")
+    if lat is None:
+        abort(400, _qth_note(connection, profile))
+
+    state = regional.state_for(place)
+    plan = None
+    if state:
+        try:
+            plan = regional.plan(state)
+        except (OSError, ValueError) as exc:
+            # The coordinator's site is down or changed shape; the sheet still
+            # names them and prints the national convention.
+            log.warning("band sheet: the %s plan could not be read: %s", state, exc)
+    coordinators = regional.for_state(state) if state else []
+
+    rows, source, note = None, None, ""
+    if bandsheet.has_repeaters(name):
+        band = bandplan.BAND_INDEX[name]
+        rows, source = repeaters.nearby(lat, lon, mhz=(band["low"] + band["high"]) / 2,
+                                        radius_km=radius_km, limit=None, conn=connection)
+        if not rows:
+            # Three different nothings, said as what they are.
+            cover = repeaters.coverage(lat, lon)
+            if cover["reason"] == "none":
+                note = ("No repeater list is held on this unit. TowerWitch, or "
+                        "elmer.py --import-repeaters, gives it one.")
+            elif cover["reason"] == "elsewhere":
+                note = ("The repeater list on this unit covers somewhere else - its nearest "
+                        "machine is %s from here. For a trip, have TowerWitch look up the "
+                        "destination before you go, and print this again."
+                        % units.say(cover["nearest_km"], system))
+            else:
+                note = "The list holds no %s repeater within that distance." % name
+
+    own = _own_class()
+    mine = bool(own) and license.lower() == own.lower()
+    label = place.get("short") or place.get("name") or place.get("grid") or "here"
+    spare = _spare_card("band-sheet")
+    pdf = bandsheet.build(
+        name, license,
+        {"label": label, "grid": place.get("grid") or "", "state": state or "",
+         "away": bool(asked)},
+        regional=plan, coordinators=coordinators, repeaters=rows,
+        repeater_note=note, repeater_source=source, radius_km=radius_km,
+        system=system, station={"callsign": profile_callsign()} if mine else None,
+        own=mine, spare=spare, class_label=bandplan.CLASS_LABELS.get(license, license))
+    log.info("band sheet PDF: %s near %s (%s), %s repeaters, plan=%s", name,
+             place.get("grid"), state or "no state",
+             "no" if rows is None else len(rows), plan["short"] if plan else "none")
+    slug = re.sub(r"[^a-z0-9]+", "-", f"{name}-{place.get('grid') or 'here'}".lower()).strip("-")
+    row = prints.keep(pdf, f"band-{slug}.pdf", "band-sheet",
+                      f"{name} near {label} - {bandplan.CLASS_LABELS.get(license, license)}",
+                      {"band": name, "class": license, "place": label,
+                       "grid": place.get("grid") or "", "state": state or "",
+                       "repeaters": None if rows is None else len(rows),
+                       **_card_meta(spare)})
     return _print_reply(row, _wants_raw(body))
 
 
@@ -4625,6 +4753,12 @@ def api_calibrate_charts():
         ref = "e-" + secrets.token_hex(2)
         log.exception("calibration charts UNHANDLED  ref %s", ref)
         return jsonify({"ok": False, "error": f"The charts could not be worked out (reference {ref})."}), 500
+
+
+@app.route("/api/cards/all")
+def api_cards_all():
+    """Every card in every deck, for choosing which go on printouts."""
+    return jsonify({"cards": trivia.every_card(), "decks": trivia.DECK_LABEL})
 
 
 @app.route("/api/cards")
@@ -9485,6 +9619,18 @@ def api_settings():
         settings["state"] = body["state"]
     if "commercial" in body:
         settings["commercial"] = bool(body["commercial"])
+    if "print_cards" in body:
+        # A card in a printout's spare space: off, ELMER's choice, or only
+        # the ones picked. See pdfcard.py.
+        mode = str(body["print_cards"] or "off")
+        if mode not in pdfcard.MODES:
+            abort(400, "print_cards is one of " + ", ".join(pdfcard.MODES))
+        settings["print_cards"] = mode
+    if "print_card_picks" in body:
+        # Only ids that name a card; the list is the operator's, in their order.
+        known = {c["id"] for c in trivia.every_card()}
+        picks = [str(i) for i in (body["print_card_picks"] or []) if str(i) in known]
+        settings["print_card_picks"] = list(dict.fromkeys(picks))
     if "clock24" in body:
         # The Local clock in the bar in 24-hour time; Zulu always is.
         settings["clock24"] = bool(body["clock24"])

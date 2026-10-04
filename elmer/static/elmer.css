@@ -145,7 +145,7 @@ p { margin: 0 0 .8rem; }
 .title-line:hover .title-name { color: var(--amber); }
 .title-track {
   font: .6rem var(--mono); letter-spacing: .12em; text-transform: uppercase;
-  color: var(--dimmer); width: 7.4rem; text-align: right;
+  color: var(--dimmer); width: 9.4rem; text-align: right;
 }
 .title-name { font-size: .82rem; font-weight: 600; color: var(--text); }
 .title-name.lapsed { color: var(--dim); text-decoration: line-through .5px; }
@@ -1516,6 +1516,18 @@ body.hs-held { overflow: hidden; }
 .ac-modes { display: flex; height: 8px; border-radius: 4px; overflow: hidden; background: var(--line); margin-top: .4rem; }
 .ac-modes i { display: block; height: 100%; }
 .ac-modes .phone { background: var(--green); } .ac-modes .cw { background: var(--amber); } .ac-modes .data { background: var(--cyan); }
+/* A park's or a summit's card (parkcard.js), tinted in the program's own
+   color so it stands apart from the panel it opens in, with a brief
+   brighter wash as it arrives - a reader still on the map sees that
+   something below has changed. */
+.park-box { background: rgba(63, 185, 80, .07); border: 1px solid rgba(63, 185, 80, .32);
+            border-radius: 10px; padding: .7rem .9rem; }
+.park-box.summit { background: rgba(88, 166, 255, .07); border-color: rgba(88, 166, 255, .32); }
+.park-box.arrive { animation: park-arrive 1.1s ease-out; }
+.park-box.summit.arrive { animation-name: summit-arrive; }
+@keyframes park-arrive { from { background: rgba(63, 185, 80, .30); } to { background: rgba(63, 185, 80, .07); } }
+@keyframes summit-arrive { from { background: rgba(88, 166, 255, .30); } to { background: rgba(88, 166, 255, .07); } }
+@media (prefers-reduced-motion: reduce) { .park-box.arrive { animation: none; } }
 .ac-months { display: flex; gap: 3px; align-items: flex-end; height: 44px; margin-top: .6rem; }
 .ac-months span { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; height: 100%; }
 .ac-months i { display: block; width: 100%; background: var(--line-2); border-radius: 2px 2px 0 0; min-height: 1px; }

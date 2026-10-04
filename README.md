@@ -220,6 +220,14 @@ it.
 Two ELMERs on one network can play one round of golf together, and when a
 host ends a game, the screens, phones and tables playing in it say so in
 those words rather than reading like a lost connection.
+The Band Plan prints a single band for one place - the QTH, or a town typed
+for a trip - with that state's coordinator plan, the simplex and calling
+frequencies, and the repeaters within fifty miles drawn on the band and listed
+nearest first.
+The Library's search finds ELMER's own history and quotation cards, by what
+they say or who said it, and a printout can carry one in the space its last
+page leaves over — ELMER's choice or the operator's picks, never at the cost
+of a page.
 [CHANGELOG.md](CHANGELOG.md) has the day-by-day.
 
 **What does not work yet.**

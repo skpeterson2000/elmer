@@ -25,6 +25,9 @@
           <td>
             <a class="printname" href="/prints/{{ row.id }}">{{ row.title }}</a>
             <div class="tiny muted mono">{{ row.name }}</div>
+            {% if row.meta and row.meta.card %}
+              <div class="tiny muted">with a card: {{ row.meta.card.about }}</div>
+            {% endif %}
           </td>
           <td class="tiny muted when" data-at="{{ row.made_at }}">&mdash;</td>
           <td class="tiny muted mono">{{ (row.bytes / 1024)|round|int }} kB</td>
@@ -57,6 +60,44 @@
   </div>
 {% endif %}
 
+{# A card in the space a sheet leaves over - see elmer/pdfcard.py. Off until
+   asked for: a band chart is a reference first. #}
+<div class="panel mt" id="pc">
+  <div class="panel-title">A card in the spare space</div>
+  <p class="small" style="margin-top:0">
+    Most sheets end part way down their last page. That space can carry one of
+    the cards the waiting screens show &mdash; a quotation, a piece of the
+    history &mdash; with its source beneath it. A card goes on only where one
+    fits whole; it never pushes the sheet onto another page, and a gap too
+    small to look meant is left empty.
+  </p>
+  <div class="row" style="gap:1rem;flex-wrap:wrap">
+    <label class="small"><input type="radio" name="pc-mode" value="off" {{ 'checked' if card_mode == 'off' }}> No card</label>
+    <label class="small"><input type="radio" name="pc-mode" value="auto" {{ 'checked' if card_mode == 'auto' }}> Let ELMER choose</label>
+    <label class="small"><input type="radio" name="pc-mode" value="mine" {{ 'checked' if card_mode == 'mine' }}> Only the cards I pick</label>
+    <span class="tiny muted" id="pc-say"></span>
+  </div>
+  <p class="tiny muted">
+    ELMER&rsquo;s choice leans to the sheet: the gear on an antenna sheet,
+    operating on a band chart, famous hams on a parks and summits list. With
+    your own picks, a sheet none of them fits goes out without one. The full
+    band chart, antenna sheets and parks and summits lists take a card; the
+    one-page band chart, the RF exposure record and certificates do not.
+  </p>
+  <div id="pc-picker" {{ '' if card_mode == 'mine' else 'hidden' }}>
+    <input id="pc-q" placeholder="find a card &middot; tesla &middot; marconi &middot; antenna" autocomplete="off">
+    <div class="tiny muted" style="margin:.35rem 0" id="pc-count"></div>
+    <div id="pc-list" class="pc-list"></div>
+  </div>
+</div>
+<style>
+#pc-q { width: 100%; max-width: 32rem; padding: .55rem .8rem; border-radius: 10px;
+        border: 1px solid var(--line-2); background: var(--panel); color: var(--text); }
+.pc-list { max-height: 26rem; overflow-y: auto; }
+.pc-card { display: flex; gap: .6rem; align-items: flex-start; padding: .45rem 0; border-bottom: 1px solid var(--line); }
+.pc-card p { margin: 0; line-height: 1.45; }
+</style>
+
 {% endblock %}
 {% block scripts %}
 <script>
@@ -64,6 +105,61 @@ document.querySelectorAll('.when').forEach(el => {
   const at = parseFloat(el.dataset.at) * 1000;
   if (at) el.textContent = new Date(at).toLocaleString();
 });
+(function () {
+  const say = document.getElementById('pc-say');
+  const picker = document.getElementById('pc-picker');
+  const list = document.getElementById('pc-list');
+  const q = document.getElementById('pc-q');
+  const count = document.getElementById('pc-count');
+  let picks = {{ card_picks|tojson }};
+  let cards = null;
+
+  async function save(body) {
+    say.textContent = 'saving…';
+    try { await postJSON('/api/settings', body); say.textContent = 'saved'; }
+    catch (err) { say.textContent = 'not saved'; }
+  }
+  const counted = () => {
+    count.textContent = picks.length
+      ? picks.length + ' picked' : 'None picked yet - tick the ones you want on your sheets.';
+  };
+  function paint() {
+    const words = q.value.trim().toLowerCase().split(/\s+/).filter(Boolean);
+    const shown = cards.filter(c => {
+      const low = (c.text + ' ' + c.about).toLowerCase();
+      return words.every(w => low.includes(w));
+    });
+    list.innerHTML = shown.map(c => `
+      <label class="pc-card">
+        <input type="checkbox" data-card="${c.id}" ${picks.includes(c.id) ? 'checked' : ''}>
+        <span><span class="tiny muted">${escapeHTML(c.deck_label)}</span>
+          <p class="small">${escapeHTML(c.text)}</p>
+          <p class="tiny muted">&mdash; ${escapeHTML(c.about)}</p></span>
+      </label>`).join('') || '<p class="small muted">No card has those words.</p>';
+    counted();
+  }
+  async function open() {
+    picker.hidden = false;
+    if (cards) return;
+    list.innerHTML = '<p class="small muted">Reading the decks…</p>';
+    try { cards = (await api('/api/cards/all')).cards; paint(); }
+    catch (err) { list.innerHTML = '<div class="warntext small">Could not read the cards.</div>'; }
+  }
+  document.querySelectorAll('input[name="pc-mode"]').forEach(r => r.addEventListener('change', () => {
+    save({print_cards: r.value});
+    if (r.value === 'mine') open(); else picker.hidden = true;
+  }));
+  list.addEventListener('change', e => {
+    const box = e.target.closest('[data-card]');
+    if (!box) return;
+    const id = box.dataset.card;
+    picks = box.checked ? picks.concat([id]) : picks.filter(p => p !== id);
+    counted();
+    save({print_card_picks: picks});
+  });
+  q.addEventListener('input', () => { if (cards) paint(); });
+  if (!picker.hidden) open();
+})();
 document.addEventListener('click', async e => {
   const btn = e.target.closest('[data-forget]');
   if (!btn) return;

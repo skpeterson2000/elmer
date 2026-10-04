@@ -13,6 +13,7 @@ whose numbers are measured cannot start handing out folklore as fact the
 moment it changes the subject. Add a card only if you could point somebody
 at where it is written down.
 """
+import hashlib
 import random
 
 CARDS = [
@@ -441,3 +442,54 @@ def draw(rng=None, avoid=None, deck="history"):
 
 def count(deck="history"):
     return len(DECKS.get(deck) or CARDS)
+
+
+# What each deck is called where a person reads the name - the Library's
+# results and the Printouts picker. The keys are the decks' own.
+DECK_LABEL = {"history": "History", "quotes": "Quotes", "hams": "Famous hams",
+              "technique": "On the air", "equipment": "The gear"}
+
+
+def card_id(text):
+    """A card's name that survives cards being added around it.
+
+    A position in the list would move whenever a card went in above it, and
+    an operator's chosen cards would quietly become other cards. The text
+    does not move; if it is reworded, the old pick simply stops matching,
+    which is the honest outcome - it is no longer the card that was chosen.
+    """
+    return hashlib.sha1(text.encode("utf-8")).hexdigest()[:10]
+
+
+def every_card():
+    """Every card in every deck, each with its deck and its id."""
+    return [{"id": card_id(text), "deck": deck, "deck_label": DECK_LABEL.get(deck, deck),
+             "text": text, "about": about}
+            for deck, cards in DECKS.items() for text, about in cards]
+
+
+def by_id(ids):
+    """The cards with these ids, in the order asked; unknown ids are left out."""
+    known = {c["id"]: c for c in every_card()}
+    return [known[i] for i in ids if i in known]
+
+
+def search(terms, limit=8):
+    """The cards that hold every term, in the card or in its source line.
+
+    The source line counts because that is where the person often is: the
+    Collier's quotation never says "Tesla" - his name is in who said it.
+    The terms are the Library's (lower-case, phrases whole), and the rule is
+    the Library's: every term present, nothing stemmed. Best first by how
+    often the terms appear, then in deck order.
+    """
+    if not terms:
+        return []
+    found = []
+    for n, card in enumerate(every_card()):
+        low = (card["text"] + " " + card["about"]).lower()
+        counts = [low.count(t) for t in terms]
+        if all(counts):
+            found.append((-sum(counts), n, card))
+    found.sort(key=lambda f: f[:2])
+    return [card for _, _, card in found[:limit]]

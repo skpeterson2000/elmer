@@ -250,7 +250,8 @@ def track_standing(standings, track):
 
     A fully-earned higher class outranks a lower one, so General beats
     Technician Elmer. Below the class tier nothing is qualified yet, so the
-    furthest step reached is shown instead.
+    furthest step reached is shown instead, and a tie on step goes to the
+    higher class: General Listener beside Technician Listener is General.
     """
     members = [s for s in standings if s["track"] == track]
     order = {pid: n for n, pid in enumerate(TRACKS[track])}
@@ -260,7 +261,7 @@ def track_standing(standings, track):
     if qualified:
         lead = qualified[-1]                      # highest class in track order
     else:
-        lead = max(members, key=lambda s: (s["step"], -order.get(s["pool_id"], 99)),
+        lead = max(members, key=lambda s: (s["step"], order.get(s["pool_id"], -1)),
                    default=None)
     return {
         "track": track,

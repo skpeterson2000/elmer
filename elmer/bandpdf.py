@@ -42,7 +42,7 @@ CHART_WIDTH = landscape(LETTER)[0] - inch
 
 
 def build(bands, license_class, regional=None, station=None, interop=False,
-          own=True):
+          own=True, spare=None):
     station = station or {}
     s = _styles()
     buf = io.BytesIO()
@@ -75,72 +75,9 @@ def build(bands, license_class, regional=None, station=None, interop=False,
     flow += [lt]
 
     for name in bands:
-        band = BAND_INDEX.get(name)
-        if not band:
+        block = band_block(name, license_class, regional, s)
+        if not block:
             continue
-        allowed = privileges_for(name, license_class)
-        gaps = gaps_for(name, license_class)
-        head = f"{name} &mdash; {band['low']:g} to {band['high']:g} MHz"
-        if not allowed:
-            head += "  (no privileges for this class)"
-        block = [Paragraph(head, s["band"]),
-                 activity_bar(name, license_class, CHART_WIDTH),
-                 Spacer(1, 2)]
-
-        # The band's name rides in the header row because these tables may now
-        # break across a page, and the repeated header is all a reader gets on
-        # the far side of the fold - four columns of frequencies belonging to
-        # nothing in particular is worse than the page break that caused it.
-        rows = [["From", "To", "Activity", f"What happens there on {name}",
-                 "You?"]]
-        style = []
-        n = 0
-        for low, high, kind, label in activity_for(name):
-            n += 1
-            you = usable_answer(name, license_class, low, high, kind)
-            state = you["state"]
-            ok = state != "no"
-            # Not dict.get with a default: the default is evaluated whatever
-            # the state is, and on a "no" row there is no range to format.
-            answer = (f"{_mhz(you['low'])}\u2013{_mhz(you['high'])}"
-                      if state == "part" else state)
-            # The reason goes beside the thing it is about. A range on its own
-            # in the last column tells the reader something is different
-            # without telling them what.
-            body = label
-            if you["note"] and state != "yes":
-                body += f'<br/><font size="6" color="#8a6d1f">{you["note"]}</font>'
-            rows.append([f"{low:.4f}".rstrip("0").rstrip("."),
-                         f"{high:.4f}".rstrip("0").rstrip(".") if high != low else "",
-                         KIND_LABEL.get(kind, kind),
-                         Paragraph(body, s["cell"]),
-                         answer])
-            style.append(("TEXTCOLOR", (2, n), (2, n), KIND_COLOR.get(kind, colors.black)))
-            if state == "part":
-                style.append(("TEXTCOLOR", (4, n), (4, n), colors.HexColor("#b8791f")))
-            if not ok:
-                style.append(("TEXTCOLOR", (4, n), (4, n), colors.HexColor("#b03a48")))
-                style.append(("BACKGROUND", (0, n), (-1, n), colors.HexColor("#f6f6f6")))
-        block.append(_table(rows, style))
-
-        if regional and name in (regional.get("bands") or {}):
-            block.append(Paragraph(
-                f"{regional['short']} coordinated segments for {name}", s["small"]))
-            rrows = [["From", "To", "Activity",
-                      f"Coordinated use on {name}"]]
-            rstyle = []
-            for m, seg in enumerate(regional["bands"][name], start=1):
-                rrows.append([f"{seg['low']:g}", f"{seg['high']:g}" if seg["high"] != seg["low"] else "",
-                              KIND_LABEL.get(seg["kind"], seg["kind"]),
-                              Paragraph(seg["label"], s["cell"])])
-                rstyle.append(("TEXTCOLOR", (2, m), (2, m),
-                               KIND_COLOR.get(seg["kind"], colors.black)))
-            block.append(_table(rrows, rstyle,
-                                widths=[0.8, 0.8, 1.1, 6.6]))
-        if gaps and allowed:
-            block.append(Paragraph(
-                "Outside your privileges on this band: " +
-                ", ".join(f"{a:g}–{b:g}" for a, b in gaps) + " MHz.", s["small"]))
         flow.append(KeepTogether(block[:2]))          # heading and its picture
         flow.extend(block[2:])                       # the rest may break
 
@@ -155,9 +92,91 @@ def build(bands, license_class, regional=None, station=None, interop=False,
     # wasted on almost everybody who prints it.
     if interop:
         flow += _interop_page(s)
+    # A card in what the last page leaves over, when the operator wants
+    # one - last, because it measures the room the rest has left. See
+    # pdfcard.py.
+    if spare is not None:
+        flow.append(spare)
     doc.build(flow)
     return buf.getvalue()
 
+
+def band_block(name, license_class, regional, s, head_extra=""):
+    """One band as the full chart prints it: the heading, the drawing, the
+    activity table, and the coordinator's segments when there is a plan.
+
+    A list of flowables, the first two being the heading and the drawing,
+    which the caller keeps together; None for a band that is not one. The
+    single-band sheet (bandsheet.py) prints the same block, so the two never
+    disagree about a band.
+    """
+    band = BAND_INDEX.get(name)
+    if not band:
+        return None
+    allowed = privileges_for(name, license_class)
+    gaps = gaps_for(name, license_class)
+    head = f"{name} &mdash; {band['low']:g} to {band['high']:g} MHz{head_extra}"
+    if not allowed:
+        head += "  (no privileges for this class)"
+    block = [Paragraph(head, s["band"]),
+             activity_bar(name, license_class, CHART_WIDTH),
+             Spacer(1, 2)]
+
+    # The band's name rides in the header row because these tables may now
+    # break across a page, and the repeated header is all a reader gets on
+    # the far side of the fold - four columns of frequencies belonging to
+    # nothing in particular is worse than the page break that caused it.
+    rows = [["From", "To", "Activity", f"What happens there on {name}",
+             "You?"]]
+    style = []
+    n = 0
+    for low, high, kind, label in activity_for(name):
+        n += 1
+        you = usable_answer(name, license_class, low, high, kind)
+        state = you["state"]
+        ok = state != "no"
+        # Not dict.get with a default: the default is evaluated whatever
+        # the state is, and on a "no" row there is no range to format.
+        answer = (f"{_mhz(you['low'])}\u2013{_mhz(you['high'])}"
+                  if state == "part" else state)
+        # The reason goes beside the thing it is about. A range on its own
+        # in the last column tells the reader something is different
+        # without telling them what.
+        body = label
+        if you["note"] and state != "yes":
+            body += f'<br/><font size="6" color="#8a6d1f">{you["note"]}</font>'
+        rows.append([f"{low:.4f}".rstrip("0").rstrip("."),
+                     f"{high:.4f}".rstrip("0").rstrip(".") if high != low else "",
+                     KIND_LABEL.get(kind, kind),
+                     Paragraph(body, s["cell"]),
+                     answer])
+        style.append(("TEXTCOLOR", (2, n), (2, n), KIND_COLOR.get(kind, colors.black)))
+        if state == "part":
+            style.append(("TEXTCOLOR", (4, n), (4, n), colors.HexColor("#b8791f")))
+        if not ok:
+            style.append(("TEXTCOLOR", (4, n), (4, n), colors.HexColor("#b03a48")))
+            style.append(("BACKGROUND", (0, n), (-1, n), colors.HexColor("#f6f6f6")))
+    block.append(_table(rows, style))
+
+    if regional and name in (regional.get("bands") or {}):
+        block.append(Paragraph(
+            f"{regional['short']} coordinated segments for {name}", s["small"]))
+        rrows = [["From", "To", "Activity",
+                  f"Coordinated use on {name}"]]
+        rstyle = []
+        for m, seg in enumerate(regional["bands"][name], start=1):
+            rrows.append([f"{seg['low']:g}", f"{seg['high']:g}" if seg["high"] != seg["low"] else "",
+                          KIND_LABEL.get(seg["kind"], seg["kind"]),
+                          Paragraph(seg["label"], s["cell"])])
+            rstyle.append(("TEXTCOLOR", (2, m), (2, m),
+                           KIND_COLOR.get(seg["kind"], colors.black)))
+        block.append(_table(rrows, rstyle,
+                            widths=[0.8, 0.8, 1.1, 6.6]))
+    if gaps and allowed:
+        block.append(Paragraph(
+            "Outside your privileges on this band: " +
+            ", ".join(f"{a:g}–{b:g}" for a, b in gaps) + " MHz.", s["small"]))
+    return block
 
 # --------------------------------------------------------------------------
 # the picture that goes above each band's table

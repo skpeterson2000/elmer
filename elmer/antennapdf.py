@@ -328,7 +328,8 @@ def dimensions(kind, mhz, conductor_key):
 
 
 def build(kind, mhz, height_ft, conductor_key="wire14", site="house",
-          use=None, callsign="", nvis=False, license_class="Extra", unit=None, lat=None):
+          use=None, callsign="", nvis=False, license_class="Extra", unit=None, lat=None,
+          spare=None):
     """The sheet, as PDF bytes.
 
     A cut sheet goes to the garage with somebody and gives both systems,
@@ -610,6 +611,11 @@ def build(kind, mhz, height_ft, conductor_key="wire14", site="house",
         "or the shed roof. Build it, measure it, and trust the instrument over "
         "this sheet where they disagree — then you will know something "
         "the arithmetic could not tell you. Made by ELMER.", st["small"]))
+    # A card in what the last page leaves over, when the operator wants
+    # one - last, because it measures the room the rest has left. See
+    # pdfcard.py.
+    if spare is not None:
+        flow.append(spare)
 
     doc.build(flow)
     return out.getvalue()

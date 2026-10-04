@@ -96,7 +96,8 @@ to the log — the dashboard shows the tail of it — not onto the study screens
 **What leaves a unit.** Your progress lives in `data/elmer.db` on the unit and
 nowhere else. The program reaches out for what it needs to stay current — space
 weather, the ionosonde record, the rule text, the pools, its own updates, the
-local coordinator's band plan for the QTH's state, the weather at a golf
+local coordinator's band plan for the QTH's state (or for the state a
+single-band sheet is printed for, when a trip's place is typed), the weather at a golf
 course from the National Weather Service (the course's, not yours), the POTA
 spot feed sampled every twenty minutes while the unit is on, and a park's or
 summit's record from POTA and SOTA when one is picked — and for what you ask
@@ -936,6 +937,30 @@ drawn from the allocations themselves rather than modelled on anybody's chart.
 **Full chart (PDF)** is the reference behind it: every activity segment in a
 table per band, with the regional segments folded in.
 
+**This band, there.** The third sheet answers a narrower question than either:
+what is on 2 m *there*. On VHF and UHF the answer is mostly local, so the sheet
+(`elmer/bandsheet.py`) takes one band and one place — the QTH in use when it is
+printed, or a town, grid or coordinates typed for a trip — and the coordinator
+and the repeaters are that place's, not home's: a sheet for Colorado printed
+in Minnesota carries no Minnesota plan. On it: the band as the full chart
+prints it (the same `bandpdf.band_block`, so the two never disagree); the band
+drawn once more with every repeater near the place ticked on it, outputs above
+the line and inputs below, over the coordinator's segments, which shows where
+the pairs crowd and where simplex is clear in a way no table does; the simplex
+and calling frequencies, each marked national or the coordinator's; the
+repeaters within the radius (fifty miles to start, in the operator's units),
+nearest first, with distance and compass bearing, at most sixty; and the
+sources with their dates. A coordinator is credited only on a band their plan
+covers, and one whose plan ELMER cannot read is still named, with their
+address, so the sheet says where to look. An empty repeater list says which
+empty it is — no list on the unit, a list that covers somewhere else (the case
+before a trip, with what to do about it), or none on that band near there —
+because those send somebody to do three different things. Below 10 m there are
+no FM repeaters in the lists and the sheet has no repeater section rather than
+an empty one. It prints for any class the page can be looked at under,
+No license and visiting included, since a sheet for a trip is worth having
+before the license is; the callsign rule above applies unchanged.
+
 **Whose chart it is.** The band plan draws any class for anybody, which is how
 somebody decides whether an upgrade is worth sitting for. On paper that becomes
 a different object: a sheet headed "US Amateur Bands — Extra — KC9SP" is read as
@@ -1528,6 +1553,8 @@ Q-code bingo (`qbingo.py`) is a table game, people only, and for one table rathe
 
 The reach map is a forecast; spots are what is happening. Two kinds go on it, both drawn on a canvas of their own laid over the map, so a refresh every minute repaints dots and not the forecast under them. Each of the map's draws - flat or great circle - leaves `bpPlace` behind, the function that turns a place into that view's pixels, and the spot layer uses it, so the spots follow every pan, zoom and projection without knowing which is showing. Both kinds are the band's own color, as everything about a band is in ELMER, ringed dark and light to stand out of the cloud of the same color; the shape says which kind: a tree for a park, a dot for a station heard.
 
+**A tree opens its park.** Pressing one shows the park's card under the map, and it is the POTA / SOTA page's own card: it moved to `parkcard.js`, which both pages load, so the two pages cannot describe one park two ways. On the Band Plan the card names the spots where people set up rather than offering them as buttons, because the buttons set the POTA page's printed sheet and there is no sheet here. A press is a pointer that went down and came up within a few pixels on a tree; the end of a drag is not one, and a press on a tree is not counted toward the map's double-tap zoom. The card links out to POTA's own pages - the park's, and from a spot the activator's profile - as buttons that open beside ELMER rather than in place of it, since on a full-screen unit there may be no way back but the window's own close; a summit gets no POTA link. Spotting to POTA from here is not built: it would be ELMER's first write to POTA, which publishes no terms for it, and it is to one side of what ELMER is for. Reading the card asks the program for the park's record, which is what picking a park has always done, so it adds nothing to *What leaves a unit*.
+
 **POTA** costs nothing new. `spotlog` already samples the activator feed every twenty minutes for the park records; it now keeps the latest batch whole, in memory, with each spot's position (the park's, as the feed gives it), band and expiry. A spot past its expiry is gone, and a batch over ninety minutes old is treated as none - a unit that lost its network an hour ago is not shown an hour-old sky as now. The sampler's failures are logged once and its recovery once, instead of on every twenty-minute try.
 
 **Heard here** is `wsjtx.py`, a listener for WSJT-X's UDP protocol (NetworkMessage.hpp: Qt's QDataStream, big-endian, the magic 0xadbccbda). Status gives the dial frequency and so the band; Decode gives the message, and a message that names a grid - `CQ K1ABC FN42`, `W1AW K1ABC FN42` - places its sender at the middle of that square; RR73 looks like a grid and is excluded; WSPR decodes carry their grid outright. A decode replayed from a file is not the air now and is skipped. Every field is bounds-checked and a packet that is not the protocol is dropped and counted - the first logged, the rest counted - so nothing arriving on the port can stop the listener; a callsign from the network is escaped on the page as well as refused by the parser. `tests/test_spots.py` builds the packets byte for byte as WSJT-X does, and sends them to a real listener on a real socket.
@@ -1633,6 +1660,39 @@ shelf rather than the table, the old setting (`manual_declined`) cleared. The RE
 front matter carries the pre-release notice: features will continue to
 appear and be refined, and what a feature does today may not be precisely
 what the final version does, where that latitude exists.
+
+### ELMER's own cards are on the shelf too
+
+The cards the waiting screens show — the history, the quotations, the hams —
+are the only place ELMER says anything about Hertz or Marconi or Tesla, so
+somebody who remembers one and wants it again looks for it in the Library.
+Search answers from them, beneath the books, in a section of its own: a card
+has no page to open, and among the pages it would read as if a book had said
+it. The rule is the pages' rule — every word present, nothing stemmed — and
+the card's source line is searched with its words, because that is often where
+the name is: the Collier's quotation of 1926 never says "Tesla". The source
+line goes out with every card, every time. Several of them say the
+attribution is doubtful, and a card shown without that is a different claim.
+
+### A card in a printout's spare space
+
+Most sheets end part way down their last page, and that space can carry a card,
+when the operator asks for one on the Printouts page: ELMER's choice, leaning
+to the sheet (the gear on an antenna sheet, operating on a band chart), or
+only the cards they picked. Off is the default; a band chart is a reference
+first. The card is the last thing in the story (`elmer/pdfcard.py`), because
+ReportLab tells the last thing how much of the frame is left when it asks it
+how big it is: it measures each candidate at the real width in the real type,
+takes the first that fits, and takes no height at all when none does or when
+the gap is under six-tenths of an inch, where a card reads as squeezed rather
+than meant. It never splits and never claims more room than it was given, so
+a sheet never gains a page because of it — the test sweeps a sheet through a
+whole page of lengths to prove it. A picked card that does not fit is not
+swapped for one that was not picked. The shelf remembers which card a sheet
+went out with. The one-page band chart takes none, because it is one fitted
+drawing whose spare corner is the colophon's; the RF exposure record and the
+certificates take none, because a document somebody signs is not a place for
+decoration.
 
 ## Showing the working
 
@@ -3807,7 +3867,10 @@ invented radio', which is more than the court said" — because a program whose
 numbers are measured does not start handing out folklore the moment it changes
 the subject. The deck is `elmer/trivia.py`, forty-eight cards from Fleming's
 valve to Garriott on Columbia; add a card only if you could point somebody at
-where it is written down.
+where it is written down. The Library's search finds the cards, and a printout
+can carry one in its spare space (see the Library, above). A card's id is a hash
+of its words, so a picked card does not turn into another when cards are added
+around it; reword one and the old pick simply stops matching.
 
 Then three seconds of **Scoring…** before the placings come up. It gives the
 result a beat to land on, and it means the reveal arrives the same way whether

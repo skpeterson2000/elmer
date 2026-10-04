@@ -55,6 +55,22 @@
         <button class="btn sm ghost" id="bp-pdf">Full chart (PDF)</button>
       </div>
     </div>
+    {# One band, in one place - see elmer/bandsheet.py. The place is the QTH in
+       use when it is printed; a town or grid typed here is for a trip. #}
+    <div class="field" style="margin-bottom:0">
+      <label>This band, there</label>
+      <div class="row" style="gap:.4rem;flex-wrap:wrap;align-items:center">
+        <input id="bp-sheet-from" class="btn sm" style="width:15rem;text-align:left" autocomplete="off"
+               placeholder="your QTH &middot; or a town or grid for a trip"
+               title="Empty prints for the QTH in use now. A town, a grid square or coordinates prints for there - the coordinator and the repeaters are that place's.">
+        <span class="tiny muted">within</span>
+        <input id="bp-sheet-r" class="btn sm num" type="number" min="1" max="250" step="1" value="{{ sheet_radius }}"
+               title="how far out to list repeaters">
+        <span class="tiny muted">{{ sheet_unit }}</span>
+        <button class="btn sm" id="bp-sheet">This band (PDF)</button>
+      </div>
+      <div class="tiny muted" id="bp-sheet-say"></div>
+    </div>
     <label class="tiny muted interop-opt" title="off by default: three extra pages of channels you may not transmit on">
       <input type="checkbox" id="bp-interop"> add interoperability channels</label>
       {# Said before the press rather than only on the printed sheet -
@@ -220,6 +236,12 @@
     <canvas id="bp-reach-map" width="1440" height="720" style="width:100%;display:block;border-radius:10px;border:1px solid var(--line);touch-action:none;cursor:grab"></canvas>
     <canvas id="bp-reach-spots" width="1440" height="720" aria-hidden="true" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;border-radius:10px"></canvas>
     <div id="bp-spot-tip" class="small" hidden style="position:absolute;pointer-events:none;max-width:22rem;padding:.35rem .55rem;border-radius:8px;background:var(--panel);border:1px solid var(--line-2);box-shadow:0 4px 14px rgba(0,0,0,.45);z-index:2"></div>
+  </div>
+  {# A park's card, for a tree pressed on the map - the same card the POTA /
+     SOTA page shows for a place picked there (parkcard.js). #}
+  <div id="bp-park" class="mt" hidden>
+    <div class="row" style="justify-content:flex-end"><button class="btn sm ghost" id="bp-park-shut">Close</button></div>
+    <div id="bp-park-card"></div>
   </div>
   {# Out of bounds: an emission the class being read may not transmit on this
      band. No map is drawn for it; the owl says so, with the rule quoted. #}
@@ -433,5 +455,6 @@
 {% block scripts %}
 {# The activity colors, from palette.py - the same ones the PDF prints. #}
 <script>window.KIND_COLOR = {{ kind_colors|tojson }}; window.CLASS_COLOR = {{ class_colors|tojson }};</script>
+<script src="{{ asset('parkcard.js') }}"></script>
 <script src="{{ asset('bandplan.js') }}"></script>
 {% endblock %}

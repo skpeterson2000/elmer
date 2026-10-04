@@ -153,7 +153,7 @@ def _section(title, shown, held, color, s):
 
 def build(parks, summits, want="both", station=None, radius_km=None,
           limit=DEFAULT_LIMIT, inner_km=0.0, outer_km=None,
-          system=units.DEFAULT, age_days=None, stale=False):
+          system=units.DEFAULT, age_days=None, stale=False, spare=None):
     """The sheet. `want` is 'parks', 'summits' or 'both'.
 
     `inner_km` and `outer_km` are a band rather than a cap, because the trips
@@ -231,6 +231,11 @@ def build(parks, summits, want="both", station=None, radius_km=None,
         "A park contact and a summit contact answer to different rules - a "
         "vehicle is ordinary in a park and a disqualification on a summit. "
         "ELMER's Parks and summits page has both sets.", s["sub"])]
+    # A card in what the last page leaves over, when the operator wants
+    # one - last, because it measures the room the rest has left. See
+    # pdfcard.py.
+    if spare is not None:
+        flow.append(spare)
 
     doc.build(flow)
     return buffer.getvalue()

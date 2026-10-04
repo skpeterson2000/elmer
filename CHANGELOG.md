@@ -5,6 +5,14 @@ which in this repository is written as a sentence about what changed for
 the person using it. `git log` has the rest. The build a unit runs is the
 short commit id on its dashboard and in every problem report.
 
+## 2026-10-04
+
+- The rank in the top bar reads **ELMER Amateur rank**, so it is not read as a rank somebody conferred in amateur radio; and where two classes stand at the same step, the higher class is the one shown.
+- A tree on the Band Plan's reach map opens that park's card under the map - the POTA / SOTA page's own card, with how often it is activated, on what, when, and where people set up - and buttons to the park's page and the activator's profile on pota.app.
+- The Band Plan prints one band for one place: **This band, there** takes the band you have picked and the QTH in use, or a town or grid typed for a trip, and prints that state's coordinator plan, the simplex and calling frequencies, and the repeaters within fifty miles - ticked on a drawing of the band and listed nearest first with distance and bearing. A list that covers somewhere else says so.
+- The Library's search finds ELMER's own cards - the history, the quotations, the hams the waiting screens show - beneath the books, each with its source; who said it counts, so *tesla* finds his 1926 Collier's interview.
+- A printout can carry a card in the space its last page leaves over: on the Printouts page, choose no card, ELMER's choice, or only the cards you pick. A card goes on only where it fits whole and never adds a page; the full band chart, antenna sheets and parks and summits lists take one.
+
 ## 2026-10-03
 
 - The reach map shows a strong band as its own color at full intensity, and a weaker one as that color fading, instead of every band going white at its best.

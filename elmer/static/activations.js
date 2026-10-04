@@ -415,82 +415,17 @@ if (document.getElementById('ac-near')) {
    and held on disk after, the same bargain as the lists. The spots inside it
    are ELMER's own, from data/landmarks.json, and each is a button that sets
    the "of" box on this page to it - so "mile 55" is one press, not a search. */
-function acMonthBar(story) {
-  if (!story || !story.by_month) return '';
-  const max = Math.max.apply(null, story.by_month) || 1;
-  const names = ['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'];
-  return '<div class="ac-months" title="activations by month, all years">' +
-    story.by_month.map((n, i) => '<span><i style="height:' + Math.round(100 * n / max) +
-      '%"></i><b>' + names[i] + '</b></span>').join('') + '</div>';
-}
-
 function acCard(r) {
   const box = document.getElementById('ac-pick-card');
-  if (!r.ok) {
-    box.innerHTML = '<p class="small muted">' + escapeHTML(r.error || 'nothing found') + '</p>';
-    return;
-  }
-  const summit = r.kind === 'summit';
-  const from = r.from_here
-    ? '<span class="mono">' + acAway(r.from_here.km) + ' ' + AC_UNITS.short + ' at ' +
-      r.from_here.bearing + '&deg;</span> from ' + escapeHTML(r.from_here.qth)
-    : 'set a QTH for the distance';
-  const facts = [
-    summit ? (r.alt_ft ? highFtText(r.alt_ft) : '') + (r.points ? ' &middot; ' + r.points + ' points' : '')
-           : escapeHTML([r.type, r.agency].filter(Boolean).join(' - ')),
-    escapeHTML(r.where || ''), r.grid ? '<span class="mono">' + escapeHTML(r.grid) + '</span>' : '',
-    r.access ? 'access: ' + escapeHTML(r.access) : '', r.methods ? 'set up: ' + escapeHTML(r.methods) : '',
-  ].filter(Boolean).join(' &middot; ');
-  const modes = r.story && r.story.modes
-    ? '<div class="ac-modes"><i class="phone" style="width:' + r.story.modes.phone + '%" title="phone"></i>' +
-      '<i class="cw" style="width:' + r.story.modes.cw + '%" title="CW"></i>' +
-      '<i class="data" style="width:' + r.story.modes.data + '%" title="data"></i></div>' +
-      '<div class="tiny muted">phone &middot; CW &middot; data, by contacts made</div>'
-    : '';
-  const spots = r.spots && r.spots.spots && r.spots.spots.length
-    ? '<div class="panel-title mt" style="margin-bottom:.3rem">Where people set up</div>' +
-      '<p class="tiny muted" style="margin:0 0 .4rem">' + escapeHTML(r.spots.about || '') +
-      ' A press puts the spot in the “of” box above, so the printed sheet is measured from it; ~ marks one read from a map by eye.</p>' +
-      '<div class="row" style="gap:.35rem;flex-wrap:wrap">' + r.spots.spots.map(s =>
-        '<button class="btn sm ghost ac-spot" data-name="' + escapeHTML(s.short) + '" title="' +
-        escapeHTML(s.kind + ' - ' + s.grid) + '">' + escapeHTML(s.short) + (s.about ? ' ~' : '') + '</button>').join('') +
-      '</div>'
-    : '';
-  box.innerHTML =
-    '<div class="prog ' + (summit ? 'prog-summit' : 'prog-park') + '">' +
-    '<div class="spread" style="align-items:baseline">' +
-      '<div><span class="mono ' + (summit ? 'ref-summit' : 'ref-park') + '">' + escapeHTML(r.ref) + '</span> ' +
-      '<b>' + escapeHTML(r.name || '') + '</b></div>' +
-      '<span class="tiny">' + from + '</span></div>' +
-    '<div class="tiny muted" style="margin:.2rem 0 .5rem">' + facts + '</div>' +
-    '<p class="small" style="margin:.3rem 0">' + escapeHTML(r.sentence || '') +
-      (r.stale ? ' <span class="muted">(held from an earlier look; the program could not be reached)</span>' : '') + '</p>' +
-    modes + acMonthBar(r.story) +
-    (r.seen
-      ? '<p class="small" style="margin:.5rem 0 0">' + escapeHTML(r.seen_sentence || '') +
-        (r.seen.busy_utc && r.seen.busy_utc.length
-          ? ' Busiest around ' + r.seen.busy_utc.map(h => acLocalHour(h)).join(', ') + '.' : '') + '</p>' +
-        (r.seen.hints && r.seen.hints.length
-          ? '<div class="tiny muted" style="margin-top:.25rem">Said on the feed: ' + r.seen.hints.slice(0, 4).map(h =>
-              '“' + escapeHTML(h.text) + '”' + (h.call ? ' — ' + escapeHTML(h.call) : '') +
-              (h.band ? ', ' + escapeHTML(h.band) : '')).join(' · ') + '</div>'
-          : '')
-      : '<p class="tiny muted" style="margin:.5rem 0 0">Bands and hours come from the spot feed, which this unit samples while it has a network; nothing seen here yet.</p>') +
-    (r.story && r.story.recent && r.story.recent.length
-      ? '<div class="tiny muted mt">Lately: ' + r.story.recent.map(a =>
-          escapeHTML(a.date) + (a.call ? ' ' + escapeHTML(a.call) : '') + (a.qsos != null ? ' (' + a.qsos + ')' : '')).join(' &middot; ') + '</div>'
-      : '') +
-    spots +
-    (r.website ? '<div class="tiny mt"><a href="' + escapeHTML(r.website) + '" target="_blank" rel="noopener">the place\u2019s own page</a></div>' : '') +
-    '</div>';
-  box.querySelectorAll('.ac-spot').forEach(b => b.addEventListener('click', () => {
+  parkArrive(box, r.kind === 'summit');
+  parkCard(r, box, {onSpot: name => {
     const from = document.getElementById('ac-from');
     if (!from) return;
-    from.value = b.dataset.name;
+    from.value = name;
     const hint = document.getElementById('ac-from-hint');
-    if (hint) hint.textContent = 'the printed sheet is measured from ' + b.dataset.name;
-    toast('Sheet from ' + b.dataset.name, 'Print nearest measures from there now');
-  }));
+    if (hint) hint.textContent = 'the printed sheet is measured from ' + name;
+    toast('Sheet from ' + name, 'Print nearest measures from there now');
+  }});
 }
 
 async function acPickRef(ref) {
@@ -540,8 +475,3 @@ document.addEventListener('click', e => {
   acPickRef(a.dataset.ref);
 });
 
-/* An hour of the day off the spot feed, said on the viewer's clock. */
-function acLocalHour(utcHour) {
-  const d = new Date(); d.setUTCHours(utcHour, 0, 0, 0);
-  return d.toLocaleTimeString([], {hour: 'numeric'});
-}
