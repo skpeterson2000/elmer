@@ -1444,7 +1444,7 @@ class Room:
                 from . import voice
                 shots = [{"player": p, "name": name(p), **s,
                           # the stroke and the call as the narrator's tokens
-                          "tokens": voice.name_tokens(name(p)) + voice.call(s.get("call")) + voice.shot(s)
+                          "tokens": voice.name_tokens(name(p)) + voice.call(s.get("call")) + voice.shot(s, d.get("course"))
                           + (voice.notes(d.get("course"), d.get("hole"), "water")
                              if s.get("kind") == "water" and not any(
                                  t.get("kind") == "water" for row in g.history[:-1] if row.get("hole") == d.get("hole")

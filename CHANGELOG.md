@@ -5,6 +5,11 @@ which in this repository is written as a sentence about what changed for
 the person using it. `git log` has the rest. The build a unit runs is the
 short commit id on its dashboard and in every problem report.
 
+## 2026-10-06
+
+- The golf narrator reads all eighteen holes of Pebble Beach: each hole whole at the tee - par and yards - and a line of color the first time a ball finds the fairway, the sand, the water or the green, from Stillwater Cove through the Cliffs of Doom to Carmel Bay.
+- At Pebble Beach the narrator calls the score when the ball drops - albatross through quadruple bogey, a recording each, in Pebble Beach's own narrator's voice.
+
 ## 2026-10-05
 
 - The golf narrator reads all eighteen holes of the Old Course at St Andrews: each hole whole at the tee - its name, par and yards, going out and coming in - and a line of color the first time a ball finds the fairway, the sand, the rough, the water or the green, from the Swilcan Burn to the Valley of Sin.

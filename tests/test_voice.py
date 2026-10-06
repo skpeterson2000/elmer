@@ -127,6 +127,23 @@ def run():
     check("picked up, a triple", voice.shot({"kind": "rough", "club": "sand-wedge", "carry": 0, "picked_up": True,
                                              "score": "triple bogey"}),
           ["the-sand-wedge", "a-foul-ball", "short-and-into-the-rough", "picked-up", "for-a-triple-bogey"])
+    voice.set_shelf(["putt-holed", "three", "four", "eight", "for-a-birdie", "for-par",
+                     "score-pebble-beach-birdie", "score-pebble-beach-quadruple-bogey"])
+    check("  the score's own call, in the course's narrator's voice",
+          voice.shot({"kind": "holed", "holed": True, "strokes": 3, "score": "birdie"}, "pebble-beach"),
+          ["putt-holed", "three", "score-pebble-beach-birdie"])
+    check("  four over has one too",
+          voice.shot({"kind": "holed", "holed": True, "strokes": 8, "score": golf.score_name(8, 4)}, "pebble-beach"),
+          ["putt-holed", "eight", "score-pebble-beach-quadruple-bogey"])
+    check("  another course's narrator does not borrow it",
+          voice.shot({"kind": "holed", "holed": True, "strokes": 3, "score": "birdie"}, "st-andrews-old"),
+          ["putt-holed", "three", "for-a-birdie"])
+    check("  a score with no call recorded is said in pieces",
+          voice.shot({"kind": "holed", "holed": True, "strokes": 4, "score": "par"}, "pebble-beach"),
+          ["putt-holed", "four", "for-par"])
+    check("  every score the rules name has a call", [n for n in list(golf.NAMES.values()) + ["+4"]
+                                                      if n not in voice.SCORE_CALLS], [])
+    voice.set_shelf(None)
 
     print("\n-- the calls --")
     check("every call the rules make has a file", [c for cs in golf.CALLS.values() for c in cs if not voice.call(c)], [])

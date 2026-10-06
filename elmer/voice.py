@@ -207,6 +207,12 @@ CALL_TOKENS = {
 SCORE_TOKENS = {"albatross": "for-an-albatross", "eagle": "for-an-eagle", "birdie": "for-a-birdie",
                 "par": "for-par", "bogey": "for-a-bogey", "double bogey": "for-a-double-bogey",
                 "triple bogey": "for-a-triple-bogey"}
+# The score called out when the ball drops, in the course's own narrator's
+# voice: score-<course>-<call>.mp3, said in place of "for a birdie" when
+# that course has it. By golf.score_name's names, and "+4" past a triple.
+SCORE_CALLS = {"albatross": "albatross", "eagle": "eagle", "birdie": "birdie",
+               "par": "par", "bogey": "bogey", "double bogey": "double-bogey",
+               "triple bogey": "triple-bogey", "+4": "quadruple-bogey"}
 LIE_TOKENS = {"tee": "from-the-tee", "fairway": "from-the-fairway", "rough": "from-the-rough",
               "sand": "from-the-sand", "green": "on-the-green", "fringe": "on-the-fringe"}
 COURSE_TOKENS = {"pebble-beach": "pebble-beach", "st-andrews-old": "the-old-course",
@@ -499,9 +505,10 @@ def call(text):
     return [tok] if tok else []
 
 
-def shot(s):
+def shot(s, course=None):
     """The stroke in words, from the shot the rules made: the club, the
-    yards, where it went, and the score if the hole is done."""
+    yards, where it went, and the score if the hole is done - called in
+    the course's narrator's voice when `course` has the recording."""
     kind = s.get("kind")
     out = []
     club = s.get("club")
@@ -557,10 +564,13 @@ def shot(s):
     if s.get("picked_up"):
         out.append("picked-up")
     score = s.get("score")
-    if score in SCORE_TOKENS and (s.get("holed") or s.get("picked_up")):
+    called = f"score-{course}-{SCORE_CALLS[score]}" if course and score in SCORE_CALLS else None
+    if called and not (_shelf and called in _shelf):
+        called = None                   # not recorded here: "for a birdie" instead
+    if (called or score in SCORE_TOKENS) and (s.get("holed") or s.get("picked_up")):
         if s.get("strokes") and s.get("holed"):
             out += number(s["strokes"])
-        out.append(SCORE_TOKENS[score])
+        out.append(called or SCORE_TOKENS[score])
     return out
 
 
