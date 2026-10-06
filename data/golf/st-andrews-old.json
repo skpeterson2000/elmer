@@ -512,7 +512,7 @@
      "name": "the Road Hole bunker"
     },
     {
-     "kind": "water",
+     "kind": "rough",
      "from": 495,
      "to": 520,
      "side": "beyond",

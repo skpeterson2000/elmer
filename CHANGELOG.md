@@ -5,6 +5,11 @@ which in this repository is written as a sentence about what changed for
 the person using it. `git log` has the rest. The build a unit runs is the
 short commit id on its dashboard and in every problem report.
 
+## 2026-10-05
+
+- The golf narrator reads all eighteen holes of the Old Course at St Andrews: each hole whole at the tee - its name, par and yards, going out and coming in - and a line of color the first time a ball finds the fairway, the sand, the rough, the water or the green, from the Swilcan Burn to the Valley of Sin.
+- Golf at the Old Course: the road behind the 17th green is played as it lies, as it is in real golf - no penalty stroke and no drop.
+
 ## 2026-10-04
 
 - The rank in the top bar reads **ELMER Amateur rank**, so it is not read as a rank somebody conferred in amateur radio; and where two classes stand at the same step, the higher class is the one shown.

@@ -235,9 +235,10 @@ of a page.
 - A net puts one question to every table; a different game to each table
   at once is not built.
 - Golf has no handicap switch in the hall (it has one at a table), and a
-  tie for a block is decided by a draw, not a play-off. The narrator has
-  recordings for the first two holes of Pebble Beach and the numbers; the
-  rest is read from pieces or shown in words. The course's real weather is
+  tie for a block is decided by a draw, not a play-off. The narrator reads
+  all eighteen holes of the Old Course whole, with a line of color for
+  each part of each hole, and the first two holes of Pebble Beach and the
+  numbers; the rest is read from pieces or shown in words. The course's real weather is
   US-only (the Weather Service's); St Andrews and Augusta play the card's
   typical wind.
 - Sound effects for golf are on the bench, unwired.
